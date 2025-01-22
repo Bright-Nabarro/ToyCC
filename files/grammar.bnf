@@ -1,0 +1,65 @@
+# 开始符
+CompUnit    ::= FuncDef;
+
+# 函数定义与返回类型
+FuncDef     ::= BuiltinType Ident "(" ParamList ")" Block;
+
+# 函数参数列表定义
+ParamList	::= /* empty */ | Param | ParamList ',' Param
+Param       ::= ScalarType Ident; 
+
+# 基本类型
+ScalarType		::= SINT | UINT 	#在lexer.ll中定义其正则表达式
+BuiltinType		::= ScalarType | "void" ;
+
+# 声明
+Decl			::=  ConstDecl; 
+## ConstDefList有逗号分隔，无法将ConstDef省略
+ConstDecl 		::= "eval" ScalarType ConstDef ConstDefList ";";
+#定义
+ConstDef		::= Ident "=" ConstInitVal; 
+ConstDefList 	::= /* empty */ | ConstDefList ',' ConstDef
+ConstInitVal 	::= ConstExpr;
+ConstExpr		::= Expr;
+
+# 块
+Block       	::= "{" BlockItemList "}";
+BlockItemList 	::= /* empty */ | BlockItem BlockItemList
+## 每个BlockItem 就是分号分隔的语句
+BlockItem		::= Decl | Stmt;
+
+LVal			::= Ident;
+
+# 语句
+Stmt        	::= "return" Expr ";";
+
+Expr        	::= LOrExpr;
+
+# 以下优先级从高到低
+# https://zh.cppreference.com/w/c/language/operator_precedence
+PrimaryExpr ::= "(" Expr ")" | Number | LVal;
+## 2 一元表达式
+UnaryExpr   ::= PrimaryExpr | UnaryOp UnaryExpr;
+UnaryOp     ::= "+" | "-" | "!";
+## 3 乘，除，取余表达式
+L3Expr      ::= UnaryExpr | L3Expr L3Op UnaryExpr;
+L3Op		::= "*" | "/" | "%"
+## 4 加, 减表达式
+L4Expr 		::= L3Expr | L4Expr L4Op L3Expr;
+L4Op		::= "+" | "-"
+## 6 
+L6Expr		::= L4Expr | L6Expr L6Op L4Expr;
+L6Op		::= "<" | ">" | "<=" | ">="
+## 7
+L7Expr      ::= L6Expr | L7Expr L7Op L6Expr;
+L7Op		::= "==" | "!="
+## 8
+LAndExpr	::= L7Expr | LAndExpr LAndOp L7Expr;
+LAndOp		::= "&&"
+## 9
+LOrExpr		::= LAndExpr | LOrExpr LOrOp LAndExpr;
+LOrOp		::= "||"
+
+Number      ::= INT_LITERAL;
+Ident       ::= [a-zA-Z_][0-9a-zA-Z_]*;
+
