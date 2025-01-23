@@ -83,7 +83,7 @@ UnsignedInt		(unsigned\s+int)|(unsigned)
 %%
 
 
-namespace tinyc
+namespace toycc
 {
 
 void Driver::set_flex(const char* buffer, int buffer_size)
@@ -92,5 +92,5 @@ void Driver::set_flex(const char* buffer, int buffer_size)
 	yy_scan_bytes(buffer, buffer_size);
 }
 
-}	//namespace tinyc
+}	//namespace toycc
 

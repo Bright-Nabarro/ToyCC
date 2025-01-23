@@ -1,14 +1,15 @@
 #pragma once
+#include <vector>
 #include "expr_ast.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 /// ConstInitVal 	::= ConstExpr; 
 class ConstInitVal: public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_const_init_val);
+	TOYCC_AST_FILL_CLASSOF(ast_const_init_val);
 	ConstInitVal(std::unique_ptr<Location> location,
 				 std::unique_ptr<ConstExpr> const_expr);
 
@@ -24,7 +25,7 @@ private:
 class ConstDef: public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_const_def);
+	TOYCC_AST_FILL_CLASSOF(ast_const_def);
 	ConstDef(std::unique_ptr<Location> location,
 			 std::unique_ptr<Ident> ident,
              std::unique_ptr<ConstInitVal> const_int_val);
@@ -45,7 +46,7 @@ class ConstDefList: public BaseAST
 {
 public:
 	using Vector = std::vector<std::unique_ptr<ConstDef>>;
-	TINYC_AST_FILL_CLASSOF(ast_const_def_list);
+	TOYCC_AST_FILL_CLASSOF(ast_const_def_list);
 	ConstDefList(std::unique_ptr<Location> location);
 	ConstDefList(std::unique_ptr<Location> location,
 				 std::unique_ptr<ConstDefList> rhs,
@@ -75,7 +76,7 @@ private:
 class ConstDecl: public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_const_decl);
+	TOYCC_AST_FILL_CLASSOF(ast_const_decl);
 	ConstDecl(std::unique_ptr<Location> location,
 			  std::unique_ptr<ScalarType> scalar_type,
 			  std::unique_ptr<ConstDef> const_def,
@@ -99,7 +100,7 @@ private:
 class Decl: public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_decl);
+	TOYCC_AST_FILL_CLASSOF(ast_decl);
 	Decl(std::unique_ptr<Location> location,
 		 std::unique_ptr<ConstDecl> const_decl);
 
@@ -109,5 +110,5 @@ private:
 	std::unique_ptr<ConstDecl> m_const_decl;
 };
 
-}	//namespace tinyc
+}	//namespace toycc
 

@@ -5,7 +5,7 @@
 #include "base_components_ast.hpp"
 
 
-namespace tinyc
+namespace toycc
 {
 
 /**
@@ -14,7 +14,7 @@ namespace tinyc
 class Stmt: public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_stmt);
+	TOYCC_AST_FILL_CLASSOF(ast_stmt);
 	Stmt(std::unique_ptr<Location> location, std::unique_ptr<Expr> expr);
 	
 	[[nodiscard]]
@@ -34,7 +34,7 @@ public:
 	Param(std::unique_ptr<Location> location, std::unique_ptr<ScalarType> type,
 		  std::unique_ptr<Ident> id);
 
-	TINYC_AST_FILL_CLASSOF(ast_param);
+	TOYCC_AST_FILL_CLASSOF(ast_param);
 	
 	[[nodiscard]]
 	auto get_type() const -> const ScalarType&;
@@ -53,7 +53,7 @@ private:
 class ParamList: public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_paramlist);
+	TOYCC_AST_FILL_CLASSOF(ast_paramlist);
 	using Vector = std::vector<std::unique_ptr<Param>>;
 
 	ParamList(std::unique_ptr<Location> location, Vector params = Vector{});
@@ -80,7 +80,7 @@ public:
 	using StmtPtr = std::unique_ptr<Stmt>;
 	using Variant = std::variant<DeclPtr, StmtPtr>;
 
-	TINYC_AST_FILL_CLASSOF(ast_block_item);
+	TOYCC_AST_FILL_CLASSOF(ast_block_item);
 
 	BlockItem(std::unique_ptr<Location> location, DeclPtr decl);
 	BlockItem(std::unique_ptr<Location> location, StmtPtr stmt);
@@ -105,7 +105,7 @@ class BlockItemList : public BaseAST
 {
 public:
 	using Vector = std::vector<std::unique_ptr<BlockItem>>;
-	TINYC_AST_FILL_CLASSOF(ast_block_item_list);
+	TOYCC_AST_FILL_CLASSOF(ast_block_item_list);
 	
 	BlockItemList(std::unique_ptr<Location> location);
 	BlockItemList(std::unique_ptr<Location> location,
@@ -126,7 +126,7 @@ private:
 class Block: public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_block);
+	TOYCC_AST_FILL_CLASSOF(ast_block);
 	Block(std::unique_ptr<Location> location,
 		  std::unique_ptr<BlockItemList> block_item_list);
 
@@ -140,7 +140,7 @@ private:
 class FuncDef: public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_funcdef)
+	TOYCC_AST_FILL_CLASSOF(ast_funcdef)
 
 	FuncDef(
 		std::unique_ptr<Location> location, 
@@ -165,5 +165,5 @@ private:
 	std::unique_ptr<Block> m_block;
 };
 
-} // namespace tinyc
+} // namespace toycc
 

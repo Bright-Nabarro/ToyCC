@@ -1,7 +1,6 @@
-#include <easylog.hpp>
 #include "base_components_ast.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 /// Number
@@ -29,7 +28,9 @@ ScalarType::ScalarType(std::unique_ptr<Location> location, BuiltinTypeEnum type)
 	: BaseAST { ast_scalar_type, std::move(location) }, m_type { type }
 {
 	if (m_type == BuiltinTypeEnum::ty_void)
-		yq::error("Expected type void in ScalarType constructor");
+	{
+		//yq::error("Expected type void in ScalarType constructor");
+	}
 }
 
 auto ScalarType::get_type() const -> BuiltinTypeEnum
@@ -68,4 +69,4 @@ auto LVal::get_id() const -> const Ident&
 	return *m_ident;
 }
 
-}	//namespace tinyc
+}	//namespace toycc

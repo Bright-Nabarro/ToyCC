@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <memory>
 
-namespace tinyc
+namespace toycc
 {
 namespace util
 {
@@ -125,6 +125,6 @@ struct variant_uptr_deref_func
 //using uptr_store_visit_ret_t =
 //	visit_result_t<typename uptr_deref_func<Func, Variant>::type, Variant>;
 
-}	//namespace tinyc::util
-}	//namespace tinyc
+}	//namespace toycc::util
+}	//namespace toycc
 

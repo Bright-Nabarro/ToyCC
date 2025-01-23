@@ -1,6 +1,6 @@
 #include "base_ast.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 BaseAST::BaseAST(AstKind kind, std::unique_ptr<Location> location)
@@ -35,6 +35,6 @@ void BaseAST::report(Location::DiagKind kind, std::string_view msg) const
 	m_location->report(kind, msg);
 }
 
-}	//namespace tinyc
+}	//namespace toycc
 	
 

@@ -1,9 +1,8 @@
 #include "llvm_location.hpp"
 #include <llvm/Support/raw_ostream.h>
 #include <cassert>
-#include <easylog.hpp>
 
-namespace tinyc
+namespace toycc
 {
 
 void LLVMLocation::set_begin(const char* buf)
@@ -71,9 +70,10 @@ auto LLVMLocation::cvt_kind_to_llvm(Location::DiagKind kind)
 		return llvm::SourceMgr::DK_Remark;
 	case Location::dk_note:
 		return llvm::SourceMgr::DK_Note;
-	default:
-		yq::error(yq::loc(), "unkown DiagKind");
+	//default:
+		//yq::error(yq::loc(), "unkown DiagKind");
 	}
+	assert(false);
 }
 
 auto operator<< (std::ostream& os, const LLVMLocation& loc) -> std::ostream&
@@ -88,4 +88,4 @@ auto operator<< (std::ostream& os, const LLVMLocation& loc) -> std::ostream&
 	return os;
 }
 
-}	//namespace tinyc
+}	//namespace toycc

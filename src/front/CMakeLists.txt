@@ -32,7 +32,7 @@ target_include_directories(front PUBLIC
 
 target_link_libraries(front PUBLIC
 	ast
-	easylog
+	spdlog
 )
 
 

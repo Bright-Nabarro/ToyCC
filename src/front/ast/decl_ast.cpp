@@ -1,6 +1,6 @@
 #include "decl_ast.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 /// ConstInitVal Implementation
@@ -115,5 +115,5 @@ auto Decl::get_const_decl() const -> const ConstDecl&
 	return *m_const_decl;
 }
 
-}	//namespace tinyc
+}	//namespace toycc
 

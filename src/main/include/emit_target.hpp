@@ -4,7 +4,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <string>
 
-namespace tinyc
+namespace toycc
 {
 
 class EmitTarget
@@ -50,4 +50,4 @@ private:
 	std::string m_optimization_level;
 };
 
-}	//namespace tinyc
+}	//namespace toycc

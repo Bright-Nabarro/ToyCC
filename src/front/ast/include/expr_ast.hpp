@@ -2,7 +2,7 @@
 #include "base_components_ast.hpp"
 #include "operator_ast.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 class BaseExpr: public BaseAST
@@ -23,7 +23,7 @@ using LowExpr = LOrExpr;
 class Expr: public BaseExpr
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_expr)
+	TOYCC_AST_FILL_CLASSOF(ast_expr)
 
 	Expr(std::unique_ptr<Location> location, std::unique_ptr<LowExpr> uptr);
 	~Expr();
@@ -43,7 +43,7 @@ private:
 class ConstExpr: public BaseExpr
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_const_expr);
+	TOYCC_AST_FILL_CLASSOF(ast_const_expr);
 	ConstExpr(std::unique_ptr<Location> location, std::unique_ptr<Expr> expr);
 
 	[[nodiscard]]
@@ -60,7 +60,7 @@ private:
 class PrimaryExpr: public BaseExpr
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_primary_expr);
+	TOYCC_AST_FILL_CLASSOF(ast_primary_expr);
 	using ExprPtr = std::unique_ptr<Expr>;
 	using NumberPtr = std::unique_ptr<Number>;
 	using LValPtr = std::unique_ptr<LVal>;
@@ -112,7 +112,7 @@ public:
 	using PackPtr = std::pair<std::unique_ptr<UnaryOp>, std::unique_ptr<UnaryExpr>>;
 	using Variant = std::variant<PrmExpPtr, PackPtr>;
 
-	TINYC_AST_FILL_CLASSOF(ast_unary_expr);
+	TOYCC_AST_FILL_CLASSOF(ast_unary_expr);
 
 	UnaryExpr(std::unique_ptr<Location> location, PrmExpPtr primary_expr);
 	UnaryExpr(std::unique_ptr<Location> location, std::unique_ptr<UnaryOp> unary_op,
@@ -140,7 +140,7 @@ public:
 };
 
 template<typename SelfExpr, typename HigherExpr, typename Op>
-	requires std::is_base_of_v<::tinyc::Operator, Op>
+	requires std::is_base_of_v<::toycc::Operator, Op>
 class BinaryExpr: public BinaryExprBase
 {
 public:
@@ -182,7 +182,7 @@ private:
 	class expr_name : public BinaryExpr<expr_name, higher_expr, operation>     \
 	{                                                                          \
 	public:                                                                    \
-		TINYC_AST_FILL_CLASSOF(expr_kind)                                      \
+		TOYCC_AST_FILL_CLASSOF(expr_kind)                                      \
 		expr_name(std::unique_ptr<Location> location, HigherExprPtr ptr)       \
 			: BinaryExpr{expr_kind, std::move(location), std::move(ptr)}       \
 		{                                                                      \
@@ -224,5 +224,5 @@ DEFINE_BINARY_EXPR_CLASS(ast_lor_expr, LOrExpr, LOrOp, LAndExpr)
 
 
 #undef DEFINE_BINARY_EXPR_CLASS
-}	//namespace tinyc
+}	//namespace toycc
 

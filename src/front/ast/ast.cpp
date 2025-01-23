@@ -1,6 +1,6 @@
 #include "ast.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 CompUnit::CompUnit(std::unique_ptr<Location> location, std::unique_ptr<FuncDef> func_def):
@@ -12,5 +12,5 @@ auto CompUnit::get_func_def() const -> const FuncDef&
 { return *m_func_def; }
 
 
-}	//namespace tinyc;
+}	//namespace toycc;
 

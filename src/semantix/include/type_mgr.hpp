@@ -3,7 +3,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Target/TargetMachine.h>
 
-namespace tinyc
+namespace toycc
 {
 
 class TypeMgr
@@ -63,5 +63,5 @@ private:
 	llvm::Type* m_double_ty;
 };
 
-}	//namespace tinyc
+}	//namespace toycc
 

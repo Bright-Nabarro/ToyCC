@@ -11,11 +11,11 @@
 #include "llvm_location.hpp"
 
 #define YY_DECL \
-	auto yylex(tinyc::Driver& driver) -> yy::parser::symbol_type
+	auto yylex(toycc::Driver& driver) -> yy::parser::symbol_type
 
 YY_DECL;
 
-namespace tinyc
+namespace toycc
 {
 
 /**
@@ -51,6 +51,8 @@ public:
 	{ return *m_ast; }
 	auto get_ast_ptr() -> CompUnit*
 	{ return m_ast.get(); }
+	auto get_ast_unique() -> std::unique_ptr<CompUnit>
+	{ return std::move(m_ast); }
 
 	/// @brief 获取parser实例，用于在flex中调用parser的方法
 	auto get_parser() -> yy::parser&
@@ -108,6 +110,5 @@ private:
 	llvm::SourceMgr& m_src_mgr;
 };
 
-
-}	//namespace tinyc
+}	//namespace toycc
 

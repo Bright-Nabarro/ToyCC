@@ -1,6 +1,7 @@
+#include <cassert>
 #include "expr_ast.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 
@@ -133,7 +134,7 @@ auto UnaryExpr::get_unary_expr() const -> const UnaryExpr&
 
 /// BinaryExpr
 template <typename SelfExpr, typename HigherExpr, typename Op>
-	requires std::is_base_of_v<::tinyc::Operator, Op>
+	requires std::is_base_of_v<::toycc::Operator, Op>
 BinaryExpr<SelfExpr, HigherExpr, Op>::BinaryExpr (
 		AstKind kind, std::unique_ptr<Location> location, HigherExprPtr ptr)
 	: BinaryExprBase{kind, std::move(location)}, m_value{std::move(ptr)}
@@ -141,7 +142,7 @@ BinaryExpr<SelfExpr, HigherExpr, Op>::BinaryExpr (
 }
 
 template <typename SelfExpr, typename HigherExpr, typename Op>
-	requires std::is_base_of_v<::tinyc::Operator, Op>
+	requires std::is_base_of_v<::toycc::Operator, Op>
 BinaryExpr<SelfExpr, HigherExpr, Op>::BinaryExpr(
 	AstKind kind, std::unique_ptr<Location> location, SelfExprPtr self_ptr,
 	OpPtr op_ptr, HigherExprPtr higher_ptr)
@@ -152,7 +153,7 @@ BinaryExpr<SelfExpr, HigherExpr, Op>::BinaryExpr(
 }
 
 template <typename SelfExpr, typename HigherExpr, typename Op>
-	requires std::is_base_of_v<::tinyc::Operator, Op>
+	requires std::is_base_of_v<::toycc::Operator, Op>
 auto BinaryExpr<SelfExpr, HigherExpr, Op>::has_higher_expr() const
 	-> bool
 {
@@ -160,7 +161,7 @@ auto BinaryExpr<SelfExpr, HigherExpr, Op>::has_higher_expr() const
 }
 
 template <typename SelfExpr, typename HigherExpr, typename Op>
-	requires std::is_base_of_v<::tinyc::Operator, Op>
+	requires std::is_base_of_v<::toycc::Operator, Op>
 auto BinaryExpr<SelfExpr, HigherExpr, Op>::has_combined_expr() const
 	-> bool
 {
@@ -168,7 +169,7 @@ auto BinaryExpr<SelfExpr, HigherExpr, Op>::has_combined_expr() const
 }
 
 template <typename SelfExpr, typename HigherExpr, typename Op>
-	requires std::is_base_of_v<::tinyc::Operator, Op>
+	requires std::is_base_of_v<::toycc::Operator, Op>
 auto BinaryExpr<SelfExpr, HigherExpr, Op>::get_higher_expr() const
 	-> const HigherExpr&
 {
@@ -176,7 +177,7 @@ auto BinaryExpr<SelfExpr, HigherExpr, Op>::get_higher_expr() const
 }
 
 template <typename SelfExpr, typename HigherExpr, typename Op>
-	requires std::is_base_of_v<::tinyc::Operator, Op>
+	requires std::is_base_of_v<::toycc::Operator, Op>
 auto BinaryExpr<SelfExpr, HigherExpr, Op>::get_combined_expr() const
 	-> CombinedExprRef
 {
@@ -190,11 +191,11 @@ auto BinaryExpr<SelfExpr, HigherExpr, Op>::get_combined_expr() const
 }
 
 template <typename SelfExpr, typename HigherExpr, typename Op>
-	requires std::is_base_of_v<::tinyc::Operator, Op>
+	requires std::is_base_of_v<::toycc::Operator, Op>
 BinaryExpr<SelfExpr, HigherExpr, Op>::~BinaryExpr()
 {
 }
 
 
-}	// namespace tinyc
+}	// namespace toycc
 

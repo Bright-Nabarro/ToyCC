@@ -6,7 +6,7 @@
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Type.h>
 
-namespace tinyc
+namespace toycc
 {
 
 namespace utils
@@ -59,21 +59,21 @@ public:
 
 auto make_error_code(conversion_error e) -> std::error_code;
 
-}	//namespace tinyc::utils
+}	//namespace toycc::utils
 
-}	//namespace tinyc
+}	//namespace toycc
 
 namespace std
 {
 
 template <>
-struct is_error_code_enum<tinyc::utils::conversion_error> : true_type
+struct is_error_code_enum<toycc::utils::conversion_error> : true_type
 {
 };
 
 }	//namespace std
 
-namespace tinyc
+namespace toycc
 {
 
 struct ConversionConfig
@@ -276,6 +276,6 @@ private:
 };
 
 
-}	//tinyc
+}	//toycc
 
 

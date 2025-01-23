@@ -4,10 +4,9 @@
 #include <llvm/IR/IRPrintingPasses.h>
 #include <llvm/Pass.h>
 #include <expected>
-#include <easylog.hpp>
 #include "emit_target.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 EmitTarget::EmitTarget(std::string_view inputfile_name,
@@ -82,8 +81,8 @@ auto EmitTarget::get_target_type() -> TargetType
 		if (m_emit_llvm)
 			return llvm_ir;
 		return object;
-	default:
-		yq::error(yq::loc(), "unkown target type");
+	//default:
+		//yq::error(yq::loc(), "unkown target type");
 	}
 }
 
@@ -127,5 +126,5 @@ auto EmitTarget::get_target_name() -> std::string
 	return result;
 }
 
-}	//namespace tinyc
+}	//namespace toycc
 

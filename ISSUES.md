@@ -6,6 +6,9 @@
 - [ ] ast.hpp 模板添加概念约束
 - [ ] 添加优化的参数选项
 - [ ] ctype class改名，添加更多帮助型方法
+- [ ] 尝试修改flex和bison的报错输出，用spdlog注入
+- [ ] 拆解, 重构CodeGenVisitor
+- [ ] 模块改名 main->backend front->frontend semantix->langspec
 
 # 重构需要注意的问题
 - [ ] 在前端和管理工具统一日志输出逻辑，使用外部库spdlog

@@ -1,7 +1,7 @@
 #pragma once
 #include "base_ast.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 /**
@@ -16,7 +16,7 @@ public:
 	[[nodiscard]]
 	auto get_int_literal() const -> int;
 	
-	TINYC_AST_FILL_CLASSOF(ast_number)
+	TOYCC_AST_FILL_CLASSOF(ast_number)
 
 private:
 	/// INT_LITERAL
@@ -35,7 +35,7 @@ public:
 	[[nodiscard]]
 	auto get_value() const -> std::string_view;
 
-	TINYC_AST_FILL_CLASSOF(ast_ident)
+	TOYCC_AST_FILL_CLASSOF(ast_ident)
 private:
 	std::string m_value;
 };
@@ -71,7 +71,7 @@ auto get_builtin_type_str(BuiltinTypeEnum type) -> const char*
 class ScalarType: public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_scalar_type)
+	TOYCC_AST_FILL_CLASSOF(ast_scalar_type)
 	ScalarType(std::unique_ptr<Location> location, BuiltinTypeEnum type);
 
 	[[nodiscard]]
@@ -91,7 +91,7 @@ private:
 class BuiltinType : public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_builtin_type)
+	TOYCC_AST_FILL_CLASSOF(ast_builtin_type)
 	BuiltinType(std::unique_ptr<Location> location, BuiltinTypeEnum type);
 
 	[[nodiscard]]
@@ -110,7 +110,7 @@ private:
 class LVal: public BaseAST
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_lval);
+	TOYCC_AST_FILL_CLASSOF(ast_lval);
 
 	LVal(std::unique_ptr<Location> location, std::unique_ptr<Ident> ident);
 	[[nodiscard]]
@@ -120,5 +120,5 @@ private:
 	std::unique_ptr<Ident> m_ident;
 };
 
-}	//namespace tinyc
+}	//namespace toycc
 

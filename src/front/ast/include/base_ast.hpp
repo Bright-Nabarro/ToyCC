@@ -2,7 +2,7 @@
 #include <memory>
 #include <expected>
 
-namespace tinyc
+namespace toycc
 {
 
 class BaseAST;
@@ -74,7 +74,7 @@ private:
 	std::unique_ptr<Location> m_location;
 };
 
-#define TINYC_AST_FILL_CLASSOF(ast_enum)                                       \
+#define TOYCC_AST_FILL_CLASSOF(ast_enum)                                       \
 	[[nodiscard]]                                                              \
 	static auto classof(const BaseAST* ast) -> bool                            \
 	{                                                                          \
@@ -82,4 +82,4 @@ private:
 	}
 
 
-}	//namespace tinyc
+}	//namespace toycc

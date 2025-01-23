@@ -1,6 +1,6 @@
 #include "stmt_ast.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 /// Stmt
@@ -163,4 +163,4 @@ auto FuncDef::get_block() const -> const Block&
 	return *m_block;
 }
 
-}	//namespace tinyc
+}	//namespace toycc

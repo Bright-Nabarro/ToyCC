@@ -1,6 +1,6 @@
 #include "type_mgr.hpp"
 
-namespace tinyc
+namespace toycc
 {
 TypeMgr::TypeMgr(llvm::LLVMContext& context, llvm::TargetMachine* target_machine):
 	m_context { context },
@@ -50,5 +50,5 @@ GET_SIGN_TYPE(long_long)
 GET_TYPE(float)
 GET_TYPE(double)
 
-}	//namespace tinyc
+}	//namespace toycc
 

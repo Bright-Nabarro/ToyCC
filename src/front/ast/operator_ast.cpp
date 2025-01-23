@@ -1,6 +1,7 @@
+#include <cassert>
 #include "operator_ast.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 /// Operation
@@ -62,4 +63,4 @@ auto Operator::get_type_str() const -> const char*
 	};
 }
 
-}	//namespace tinyc
+}	//namespace toycc

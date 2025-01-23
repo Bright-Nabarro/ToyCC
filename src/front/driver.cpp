@@ -3,7 +3,7 @@
 #include <format>
 #include <llvm/Support/WithColor.h>
 
-namespace tinyc
+namespace toycc
 {
 
 Driver::Driver(llvm::SourceMgr& src_mgr):
@@ -74,5 +74,5 @@ auto DriverFactory::produce_driver(std::string_view file_name)
 	return driver;
 }
 
-}	//namespace tinyc
+}	//namespace toycc
 

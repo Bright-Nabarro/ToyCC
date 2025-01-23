@@ -20,7 +20,7 @@
 	} while (0)
 
 
-namespace tinyc
+namespace toycc
 {
 
 class LLVMLocation: public Location
@@ -85,4 +85,4 @@ private:
 
 auto operator<< (std::ostream& o, const LLVMLocation& loc) -> std::ostream&;
 
-}	//namespace tinyc
+}	//namespace toycc

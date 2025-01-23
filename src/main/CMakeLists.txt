@@ -6,7 +6,7 @@ AddLLVMTrgExe(${trg} ${src})
 ChgExeOutputDir(${trg})
 
 target_link_libraries(${trg} PRIVATE
-	front easylog semantix
+	front spdlog::spdlog semantix
 )
 
 target_include_directories(${trg} PRIVATE

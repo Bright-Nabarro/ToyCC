@@ -13,13 +13,13 @@
 #include "ast.hpp"
 #include "llvm_location.hpp"
 //前向声明
-namespace tinyc { class Driver; }
+namespace toycc { class Driver; }
 }
 
-%param { tinyc::Driver& driver }
+%param { toycc::Driver& driver }
 
 %locations	//生成location定位
-%define api.location.type { tinyc::LLVMLocation }	//使用自定义location类型
+%define api.location.type { toycc::LLVMLocation }	//使用自定义location类型
 //%define api.filename.type { std::string_view }
 %define parse.trace
 %define parse.error detailed
@@ -36,7 +36,7 @@ namespace tinyc { class Driver; }
 	static_assert(std::is_same_v<Type, typename std::decay_t<decltype(ptr)>::element_type>)
 
 #define CONSTRUCT_LOCATION(arg) \
-	std::make_unique<tinyc::LLVMLocation>(arg)
+	std::make_unique<toycc::LLVMLocation>(arg)
 }
 
 %token <std::string> IDENT
@@ -69,48 +69,48 @@ namespace tinyc { class Driver; }
 %token OP_LOR	"||"
 %token OP_ASSIGN "="
 
-%nterm <std::unique_ptr<tinyc::CompUnit>>		CompUnit
+%nterm <std::unique_ptr<toycc::CompUnit>>		CompUnit
 //basic
-%nterm <std::unique_ptr<tinyc::Number>>			Number
-%nterm <std::unique_ptr<tinyc::Ident>>			Ident
-%nterm <std::unique_ptr<tinyc::LVal>>			LVal
+%nterm <std::unique_ptr<toycc::Number>>			Number
+%nterm <std::unique_ptr<toycc::Ident>>			Ident
+%nterm <std::unique_ptr<toycc::LVal>>			LVal
 
-%nterm <std::unique_ptr<tinyc::Stmt>>			Stmt
-%nterm <std::unique_ptr<tinyc::Decl>>			Decl
-%nterm <std::unique_ptr<tinyc::Block>>			Block
-%nterm <std::unique_ptr<tinyc::BlockItemList>>	BlockItemList
-%nterm <std::unique_ptr<tinyc::BlockItem>>		BlockItem
+%nterm <std::unique_ptr<toycc::Stmt>>			Stmt
+%nterm <std::unique_ptr<toycc::Decl>>			Decl
+%nterm <std::unique_ptr<toycc::Block>>			Block
+%nterm <std::unique_ptr<toycc::BlockItemList>>	BlockItemList
+%nterm <std::unique_ptr<toycc::BlockItem>>		BlockItem
 
-%nterm <std::unique_ptr<tinyc::ConstDecl>>		ConstDecl
-%nterm <std::unique_ptr<tinyc::ConstDef>> 		ConstDef
-%nterm <std::unique_ptr<tinyc::ConstDefList>> 	ConstDefList
-%nterm <std::unique_ptr<tinyc::ConstInitVal>>	ConstInitVal
-%nterm <std::unique_ptr<tinyc::ConstExpr>>		ConstExpr
+%nterm <std::unique_ptr<toycc::ConstDecl>>		ConstDecl
+%nterm <std::unique_ptr<toycc::ConstDef>> 		ConstDef
+%nterm <std::unique_ptr<toycc::ConstDefList>> 	ConstDefList
+%nterm <std::unique_ptr<toycc::ConstInitVal>>	ConstInitVal
+%nterm <std::unique_ptr<toycc::ConstExpr>>		ConstExpr
 //type
-%nterm <std::unique_ptr<tinyc::ScalarType>>		ScalarType
-%nterm <std::unique_ptr<tinyc::BuiltinType>>	BuiltinType
+%nterm <std::unique_ptr<toycc::ScalarType>>		ScalarType
+%nterm <std::unique_ptr<toycc::BuiltinType>>	BuiltinType
 
-%nterm <std::unique_ptr<tinyc::Param>>			Param
-%nterm <std::unique_ptr<tinyc::ParamList>>		ParamList
-%nterm <std::unique_ptr<tinyc::FuncDef>>		FuncDef
+%nterm <std::unique_ptr<toycc::Param>>			Param
+%nterm <std::unique_ptr<toycc::ParamList>>		ParamList
+%nterm <std::unique_ptr<toycc::FuncDef>>		FuncDef
 // expr
-%nterm <std::unique_ptr<tinyc::Expr>>			Expr
-%nterm <std::unique_ptr<tinyc::UnaryExpr>>		UnaryExpr
-%nterm <std::unique_ptr<tinyc::PrimaryExpr>>	PrimaryExpr
-%nterm <std::unique_ptr<tinyc::L3Expr>> 		L3Expr
-%nterm <std::unique_ptr<tinyc::L4Expr>>			L4Expr
-%nterm <std::unique_ptr<tinyc::L6Expr>>			L6Expr
-%nterm <std::unique_ptr<tinyc::L7Expr>>			L7Expr
-%nterm <std::unique_ptr<tinyc::LAndExpr>>		LAndExpr
-%nterm <std::unique_ptr<tinyc::LOrExpr>>		LOrExpr
+%nterm <std::unique_ptr<toycc::Expr>>			Expr
+%nterm <std::unique_ptr<toycc::UnaryExpr>>		UnaryExpr
+%nterm <std::unique_ptr<toycc::PrimaryExpr>>	PrimaryExpr
+%nterm <std::unique_ptr<toycc::L3Expr>> 		L3Expr
+%nterm <std::unique_ptr<toycc::L4Expr>>			L4Expr
+%nterm <std::unique_ptr<toycc::L6Expr>>			L6Expr
+%nterm <std::unique_ptr<toycc::L7Expr>>			L7Expr
+%nterm <std::unique_ptr<toycc::LAndExpr>>		LAndExpr
+%nterm <std::unique_ptr<toycc::LOrExpr>>		LOrExpr
 // operator
-%nterm <std::unique_ptr<tinyc::UnaryOp>>		UnaryOp
-%nterm <std::unique_ptr<tinyc::L3Op>> 			L3Op
-%nterm <std::unique_ptr<tinyc::L4Op>>			L4Op
-%nterm <std::unique_ptr<tinyc::L6Op>>			L6Op
-%nterm <std::unique_ptr<tinyc::L7Op>>			L7Op
-%nterm <std::unique_ptr<tinyc::LAndOp>>			LAndOp
-%nterm <std::unique_ptr<tinyc::LOrOp>>			LOrOp
+%nterm <std::unique_ptr<toycc::UnaryOp>>		UnaryOp
+%nterm <std::unique_ptr<toycc::L3Op>> 			L3Op
+%nterm <std::unique_ptr<toycc::L4Op>>			L4Op
+%nterm <std::unique_ptr<toycc::L6Op>>			L6Op
+%nterm <std::unique_ptr<toycc::L7Op>>			L7Op
+%nterm <std::unique_ptr<toycc::LAndOp>>			LAndOp
+%nterm <std::unique_ptr<toycc::LOrOp>>			LOrOp
 
 
 %%
@@ -121,11 +121,11 @@ CompUnit:
 	FuncDef 
 	{
 		//llvm::isa足够智能，能够区分裸指针和智能指针的情况
-		assert_same_ptr(tinyc::FuncDef, $1);
-		std::unique_ptr<tinyc::Location> location =
+		assert_same_ptr(toycc::FuncDef, $1);
+		std::unique_ptr<toycc::Location> location =
 			CONSTRUCT_LOCATION(@$);
 		auto comp_unit_ptr =
-			std::make_unique<tinyc::CompUnit>(std::move(location), std::move($1));
+			std::make_unique<toycc::CompUnit>(std::move(location), std::move($1));
 		driver.set_ast(std::move(comp_unit_ptr));
 	};
 
@@ -133,12 +133,12 @@ FuncDef :
 //   1	   2 	3      4   	  5   6
 	BuiltinType Ident "(" ParamList ")" Block
 	{
-		assert_same_ptr(tinyc::BuiltinType,$1);
-		assert_same_ptr(tinyc::Ident, $2);
-		assert_same_ptr(tinyc::ParamList, $4);
-		assert_same_ptr(tinyc::Block, $6);
+		assert_same_ptr(toycc::BuiltinType,$1);
+		assert_same_ptr(toycc::Ident, $2);
+		assert_same_ptr(toycc::ParamList, $4);
+		assert_same_ptr(toycc::Block, $6);
 
-		auto funcdef_ptr = std::make_unique<tinyc::FuncDef>(
+		auto funcdef_ptr = std::make_unique<toycc::FuncDef>(
 			CONSTRUCT_LOCATION(@$),
 			std::move($1), std::move($2), std::move($4), std::move($6)
 		);
@@ -149,19 +149,19 @@ FuncDef :
 ParamList :
 	/* empty */
 	{
-		$$ = std::make_unique<tinyc::ParamList>(CONSTRUCT_LOCATION(@$));
+		$$ = std::make_unique<toycc::ParamList>(CONSTRUCT_LOCATION(@$));
 	}
 	| Param
 	{
-		assert_same_ptr(tinyc::Param, $1);
-		auto param_list_ptr = std::make_unique<tinyc::ParamList>(CONSTRUCT_LOCATION(@$));
+		assert_same_ptr(toycc::Param, $1);
+		auto param_list_ptr = std::make_unique<toycc::ParamList>(CONSTRUCT_LOCATION(@$));
 		param_list_ptr->add_param(std::move($1));
 		$$ = std::move(param_list_ptr);
 	}
 	| ParamList "," Param
 	{
-		assert_same_ptr(tinyc::ParamList, $1);
-		assert_same_ptr(tinyc::Param, $3);
+		assert_same_ptr(toycc::ParamList, $1);
+		assert_same_ptr(toycc::Param, $3);
 
 		auto param_list_ptr = std::move($1);
 		param_list_ptr->add_param(std::move($3));
@@ -171,200 +171,200 @@ ParamList :
 Param :
 	ScalarType Ident
 	{
-		assert_same_ptr(tinyc::ScalarType, $1);
-		assert_same_ptr(tinyc::Ident, $2);
-		auto param_ptr = std::make_unique<tinyc::Param>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2));
+		assert_same_ptr(toycc::ScalarType, $1);
+		assert_same_ptr(toycc::Ident, $2);
+		auto param_ptr = std::make_unique<toycc::Param>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2));
 		$$ = std::move(param_ptr);
 	}
 
 ScalarType        
 	: KW_SINT {
-		$$ = std::make_unique<tinyc::ScalarType>(CONSTRUCT_LOCATION(@$), tinyc::BuiltinTypeEnum::ty_signed_int);
+		$$ = std::make_unique<toycc::ScalarType>(CONSTRUCT_LOCATION(@$), toycc::BuiltinTypeEnum::ty_signed_int);
 	}
 	| KW_UINT {
-		$$ = std::make_unique<tinyc::ScalarType>(CONSTRUCT_LOCATION(@$), tinyc::BuiltinTypeEnum::ty_unsigned_int);
+		$$ = std::make_unique<toycc::ScalarType>(CONSTRUCT_LOCATION(@$), toycc::BuiltinTypeEnum::ty_unsigned_int);
 	};
 
 BuiltinType
 	: ScalarType {
-		assert_same_ptr(tinyc::ScalarType, $1);
+		assert_same_ptr(toycc::ScalarType, $1);
 		// 直接构造，与文法原本语义不同
-		$$ = std::make_unique<tinyc::BuiltinType>(CONSTRUCT_LOCATION(@$), ($1)->get_type());
+		$$ = std::make_unique<toycc::BuiltinType>(CONSTRUCT_LOCATION(@$), ($1)->get_type());
 	}
 	| KW_VOID {
-		$$ = std::make_unique<tinyc::BuiltinType>(CONSTRUCT_LOCATION(@$),
-			tinyc::BuiltinTypeEnum::ty_void);
+		$$ = std::make_unique<toycc::BuiltinType>(CONSTRUCT_LOCATION(@$),
+			toycc::BuiltinTypeEnum::ty_void);
 	};
 
 Decl
 	: ConstDecl {
-		assert_same_ptr(tinyc::ConstDecl, $1);
-		$$ = std::make_unique<tinyc::Decl>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::ConstDecl, $1);
+		$$ = std::make_unique<toycc::Decl>(CONSTRUCT_LOCATION(@$), std::move($1));
 	};
 
 ConstDecl
 	: KW_CONST ScalarType ConstDef ConstDefList ";" {
 	// 1 		2 			3 			4		 
-		assert_same_ptr(tinyc::ScalarType, $2);
-		assert_same_ptr(tinyc::ConstDef, $3);
-		assert_same_ptr(tinyc::ConstDefList, $4);
-		$$ = std::make_unique<tinyc::ConstDecl>(CONSTRUCT_LOCATION(@$),
+		assert_same_ptr(toycc::ScalarType, $2);
+		assert_same_ptr(toycc::ConstDef, $3);
+		assert_same_ptr(toycc::ConstDefList, $4);
+		$$ = std::make_unique<toycc::ConstDecl>(CONSTRUCT_LOCATION(@$),
 			std::move($2), std::move($3), std::move($4));
 	};
 
 ConstDefList
 	: /*empty*/ {
-		$$ = std::make_unique<tinyc::ConstDefList>(CONSTRUCT_LOCATION(@$));
+		$$ = std::make_unique<toycc::ConstDefList>(CONSTRUCT_LOCATION(@$));
 	}
 	// 1			2	3
 	| ConstDefList "," ConstDef {
-		assert_same_ptr(tinyc::ConstDefList, $1);
-		assert_same_ptr(tinyc::ConstDef, $3);
-		$$ = std::make_unique<tinyc::ConstDefList>(CONSTRUCT_LOCATION(@$),
+		assert_same_ptr(toycc::ConstDefList, $1);
+		assert_same_ptr(toycc::ConstDef, $3);
+		$$ = std::make_unique<toycc::ConstDefList>(CONSTRUCT_LOCATION(@$),
 			std::move($1), std::move($3));
 	};
 
 ConstDef
 	: Ident "=" ConstInitVal {
 	// 1	 2		3
-		assert_same_ptr(tinyc::Ident, $1);
-		assert_same_ptr(tinyc::ConstInitVal, $3);
-		$$ = std::make_unique<tinyc::ConstDef>(CONSTRUCT_LOCATION(@$),
+		assert_same_ptr(toycc::Ident, $1);
+		assert_same_ptr(toycc::ConstInitVal, $3);
+		$$ = std::make_unique<toycc::ConstDef>(CONSTRUCT_LOCATION(@$),
 			std::move($1), std::move($3));
 	};
 
 ConstInitVal 	
 	: ConstExpr {
-		assert_same_ptr(tinyc::ConstExpr, $1);
-		$$ = std::make_unique<tinyc::ConstInitVal>(CONSTRUCT_LOCATION(@$),
+		assert_same_ptr(toycc::ConstExpr, $1);
+		$$ = std::make_unique<toycc::ConstInitVal>(CONSTRUCT_LOCATION(@$),
 			std::move($1));
 	}; 
 
 ConstExpr
 	: Expr {
-		assert_same_ptr(tinyc::Expr, $1);
-		$$ = std::make_unique<tinyc::ConstExpr>(CONSTRUCT_LOCATION(@$),
+		assert_same_ptr(toycc::Expr, $1);
+		$$ = std::make_unique<toycc::ConstExpr>(CONSTRUCT_LOCATION(@$),
 			std::move($1));
 	};
 
 Block
 	: "{" BlockItemList "}"{
-		assert_same_ptr(tinyc::BlockItemList, $2);
-		$$ = std::make_unique<tinyc::Block>(CONSTRUCT_LOCATION(@$), std::move($2));
+		assert_same_ptr(toycc::BlockItemList, $2);
+		$$ = std::make_unique<toycc::Block>(CONSTRUCT_LOCATION(@$), std::move($2));
 	};
 
 BlockItemList
 	: /* empty */ {
-		$$ = std::make_unique<tinyc::BlockItemList>(CONSTRUCT_LOCATION(@$));
+		$$ = std::make_unique<toycc::BlockItemList>(CONSTRUCT_LOCATION(@$));
 	}
 	| BlockItem BlockItemList {
-		assert_same_ptr(tinyc::BlockItem, $1);
-		assert_same_ptr(tinyc::BlockItemList, $2);
-		$$ = std::make_unique<tinyc::BlockItemList>(CONSTRUCT_LOCATION(@$), 
+		assert_same_ptr(toycc::BlockItem, $1);
+		assert_same_ptr(toycc::BlockItemList, $2);
+		$$ = std::make_unique<toycc::BlockItemList>(CONSTRUCT_LOCATION(@$), 
 			std::move($1), std::move($2));
 	};
 
 BlockItem
 	: Decl {
-		assert_same_ptr(tinyc::Decl, $1);
-		$$ = std::make_unique<tinyc::BlockItem>(CONSTRUCT_LOCATION(@$), 
+		assert_same_ptr(toycc::Decl, $1);
+		$$ = std::make_unique<toycc::BlockItem>(CONSTRUCT_LOCATION(@$), 
 			std::move($1));
 	}
 	| Stmt {
-		assert_same_ptr(tinyc::Stmt, $1);
-		$$ = std::make_unique<tinyc::BlockItem>(CONSTRUCT_LOCATION(@$), 
+		assert_same_ptr(toycc::Stmt, $1);
+		$$ = std::make_unique<toycc::BlockItem>(CONSTRUCT_LOCATION(@$), 
 			std::move($1));
 	};
 
 LVal
 	: Ident {
-		assert_same_ptr(tinyc::Ident, $1);
-		$$ = std::make_unique<tinyc::LVal>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::Ident, $1);
+		$$ = std::make_unique<toycc::LVal>(CONSTRUCT_LOCATION(@$), std::move($1));
 	};
 
 Stmt
 	: KW_RETURN Expr ";" {
-		assert_same_ptr(tinyc::Expr, $2);
-		auto stmt_ptr = std::make_unique<tinyc::Stmt>(CONSTRUCT_LOCATION(@$), std::move($2));
+		assert_same_ptr(toycc::Expr, $2);
+		auto stmt_ptr = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$), std::move($2));
 		$$ = std::move(stmt_ptr);
 	};
 
 Expr
 	: LOrExpr {
-		assert_same_ptr(tinyc::LOrExpr, $1);
-		$$ = std::make_unique<tinyc::Expr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::LOrExpr, $1);
+		$$ = std::make_unique<toycc::Expr>(CONSTRUCT_LOCATION(@$), std::move($1));
 	};
 
 PrimaryExpr
 	: "(" Expr ")" {
-		assert_same_ptr(tinyc::Expr, $2);
-		$$ = std::make_unique<tinyc::PrimaryExpr>(CONSTRUCT_LOCATION(@$), std::move($2));
+		assert_same_ptr(toycc::Expr, $2);
+		$$ = std::make_unique<toycc::PrimaryExpr>(CONSTRUCT_LOCATION(@$), std::move($2));
 	}
 	| Number {
-		assert_same_ptr(tinyc::Number, $1);
-		$$ = std::make_unique<tinyc::PrimaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::Number, $1);
+		$$ = std::make_unique<toycc::PrimaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
 	}
 	| LVal {
-		assert_same_ptr(tinyc::LVal, $1);
-		$$ = std::make_unique<tinyc::PrimaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::LVal, $1);
+		$$ = std::make_unique<toycc::PrimaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
 	};
 
 
 UnaryExpr
 	: PrimaryExpr {
-		assert_same_ptr(tinyc::PrimaryExpr, $1);
-		$$ = std::make_unique<tinyc::UnaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::PrimaryExpr, $1);
+		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
 	}
 	| UnaryOp UnaryExpr {
-		assert_same_ptr(tinyc::UnaryOp, $1);
-		assert_same_ptr(tinyc::UnaryExpr, $2);
-		$$ = std::make_unique<tinyc::UnaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2));
+		assert_same_ptr(toycc::UnaryOp, $1);
+		assert_same_ptr(toycc::UnaryExpr, $2);
+		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2));
 	};
 
 UnaryOp
 	: "+" {
-		$$ = std::make_unique<tinyc::UnaryOp>(CONSTRUCT_LOCATION(@$), tinyc::UnaryOp::op_add);
+		$$ = std::make_unique<toycc::UnaryOp>(CONSTRUCT_LOCATION(@$), toycc::UnaryOp::op_add);
 	}
 	| "-" {
-		$$ = std::make_unique<tinyc::UnaryOp>(CONSTRUCT_LOCATION(@$), tinyc::UnaryOp::op_sub);
+		$$ = std::make_unique<toycc::UnaryOp>(CONSTRUCT_LOCATION(@$), toycc::UnaryOp::op_sub);
 	} 
 	| "!" {
-		$$ = std::make_unique<tinyc::UnaryOp>(CONSTRUCT_LOCATION(@$), tinyc::UnaryOp::op_not);
+		$$ = std::make_unique<toycc::UnaryOp>(CONSTRUCT_LOCATION(@$), toycc::UnaryOp::op_not);
 	};
 
 L3Expr
 	: UnaryExpr {
-		assert_same_ptr(tinyc::UnaryExpr, $1);
-		$$ = std::make_unique<tinyc::L3Expr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::UnaryExpr, $1);
+		$$ = std::make_unique<toycc::L3Expr>(CONSTRUCT_LOCATION(@$), std::move($1));
 	}
 	| L3Expr L3Op UnaryExpr {
-		assert_same_ptr(tinyc::L3Expr, $1);
-		assert_same_ptr(tinyc::L3Op, $2);
-		assert_same_ptr(tinyc::UnaryExpr, $3);
-		$$ = std::make_unique<tinyc::L3Expr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2), std::move($3));
+		assert_same_ptr(toycc::L3Expr, $1);
+		assert_same_ptr(toycc::L3Op, $2);
+		assert_same_ptr(toycc::UnaryExpr, $3);
+		$$ = std::make_unique<toycc::L3Expr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2), std::move($3));
 	};
 
 L3Op
 	: "*"  {
-		$$ = std::make_unique<tinyc::L3Op>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_mul);
+		$$ = std::make_unique<toycc::L3Op>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_mul);
 	}
 	| "/"  {
-		$$ = std::make_unique<tinyc::L3Op>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_div);
+		$$ = std::make_unique<toycc::L3Op>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_div);
 	}
 	| "%" {
-		$$ = std::make_unique<tinyc::L3Op>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_mod);
+		$$ = std::make_unique<toycc::L3Op>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_mod);
 	};
 
 L4Expr
 	: L3Expr {
-		assert_same_ptr(tinyc::L3Expr, $1);
-		$$ = std::make_unique<tinyc::L4Expr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::L3Expr, $1);
+		$$ = std::make_unique<toycc::L4Expr>(CONSTRUCT_LOCATION(@$), std::move($1));
 	}
 	| L4Expr L4Op L3Expr {
-		assert_same_ptr(tinyc::L4Expr, $1);
-		assert_same_ptr(tinyc::L4Op, $2);
-		assert_same_ptr(tinyc::L3Expr, $3);
-		$$ = std::make_unique<tinyc::L4Expr>(
+		assert_same_ptr(toycc::L4Expr, $1);
+		assert_same_ptr(toycc::L4Op, $2);
+		assert_same_ptr(toycc::L3Expr, $3);
+		$$ = std::make_unique<toycc::L4Expr>(
 			CONSTRUCT_LOCATION(@$),
 			std::move($1),
 			std::move($2),
@@ -374,107 +374,107 @@ L4Expr
 
 L4Op
 	: "+" {
-		$$ = std::make_unique<tinyc::L4Op>(
+		$$ = std::make_unique<toycc::L4Op>(
 			CONSTRUCT_LOCATION(@$),
-			tinyc::Operator::op_add
+			toycc::Operator::op_add
 		);
 	}
 	| "-" {
-		$$ = std::make_unique<tinyc::L4Op>(CONSTRUCT_LOCATION(@$),
-			tinyc::Operator::op_sub);
+		$$ = std::make_unique<toycc::L4Op>(CONSTRUCT_LOCATION(@$),
+			toycc::Operator::op_sub);
 	};
 
 L6Expr
 	: L4Expr {
-		assert_same_ptr(tinyc::L4Expr, $1);
-		$$ = std::make_unique<tinyc::L6Expr>(
+		assert_same_ptr(toycc::L4Expr, $1);
+		$$ = std::make_unique<toycc::L6Expr>(
 			CONSTRUCT_LOCATION(@$),
 			std::move($1)
 		);
 	}
 	| L6Expr L6Op L4Expr {
-		assert_same_ptr(tinyc::L6Expr, $1);
-		assert_same_ptr(tinyc::L6Op, $2);
-		assert_same_ptr(tinyc::L4Expr, $3);
-		$$ = std::make_unique<tinyc::L6Expr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2), std::move($3));
+		assert_same_ptr(toycc::L6Expr, $1);
+		assert_same_ptr(toycc::L6Op, $2);
+		assert_same_ptr(toycc::L4Expr, $3);
+		$$ = std::make_unique<toycc::L6Expr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2), std::move($3));
 	};
 
 L6Op
 	: "<" {
-		$$ = std::make_unique<tinyc::L6Op>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_lt);
+		$$ = std::make_unique<toycc::L6Op>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_lt);
 	}
 	| ">" {
-		$$ = std::make_unique<tinyc::L6Op>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_gt);
+		$$ = std::make_unique<toycc::L6Op>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_gt);
 	}
 	| "<=" {
-		$$ = std::make_unique<tinyc::L6Op>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_le);
+		$$ = std::make_unique<toycc::L6Op>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_le);
 	}
 	| ">=" {
-		$$ = std::make_unique<tinyc::L6Op>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_ge);
+		$$ = std::make_unique<toycc::L6Op>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_ge);
 	};
 
 L7Expr      
 	: L6Expr {
-		assert_same_ptr(tinyc::L6Expr, $1);
-		$$ = std::make_unique<tinyc::L7Expr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::L6Expr, $1);
+		$$ = std::make_unique<toycc::L7Expr>(CONSTRUCT_LOCATION(@$), std::move($1));
 	}
 	| L7Expr L7Op L6Expr {
-		assert_same_ptr(tinyc::L7Expr, $1);
-		assert_same_ptr(tinyc::L7Op, $2);
-		assert_same_ptr(tinyc::L6Expr, $3);
-		$$ = std::make_unique<tinyc::L7Expr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2), std::move($3));
+		assert_same_ptr(toycc::L7Expr, $1);
+		assert_same_ptr(toycc::L7Op, $2);
+		assert_same_ptr(toycc::L6Expr, $3);
+		$$ = std::make_unique<toycc::L7Expr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2), std::move($3));
 	};
 
 L7Op		
 	: "==" {
-		$$ = std::make_unique<tinyc::L7Op>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_eq);
+		$$ = std::make_unique<toycc::L7Op>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_eq);
 	}
 	| "!=" {
-		$$ = std::make_unique<tinyc::L7Op>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_ne);
+		$$ = std::make_unique<toycc::L7Op>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_ne);
 	};
 
 LAndExpr	
 	: L7Expr {
-		assert_same_ptr(tinyc::L7Expr, $1);
-		$$ = std::make_unique<tinyc::LAndExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::L7Expr, $1);
+		$$ = std::make_unique<toycc::LAndExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
 	}
 	| LAndExpr LAndOp L7Expr{
-		assert_same_ptr(tinyc::LAndExpr, $1);
-		assert_same_ptr(tinyc::LAndOp, $2);
-		assert_same_ptr(tinyc::L7Expr, $3);
-		$$ = std::make_unique<tinyc::LAndExpr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2), std::move($3));
+		assert_same_ptr(toycc::LAndExpr, $1);
+		assert_same_ptr(toycc::LAndOp, $2);
+		assert_same_ptr(toycc::L7Expr, $3);
+		$$ = std::make_unique<toycc::LAndExpr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2), std::move($3));
 	};
 
 LAndOp		
 	: "&&" {
-		$$ = std::make_unique<tinyc::LAndOp>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_land);
+		$$ = std::make_unique<toycc::LAndOp>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_land);
 	}
 
 LOrExpr
 	: LAndExpr {
-		assert_same_ptr(tinyc::LAndExpr, $1);
-		$$ = std::make_unique<tinyc::LOrExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		assert_same_ptr(toycc::LAndExpr, $1);
+		$$ = std::make_unique<toycc::LOrExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
 	}
 	| LOrExpr LOrOp LAndExpr {
-		assert_same_ptr(tinyc::LOrExpr, $1);
-		assert_same_ptr(tinyc::LOrOp, $2);
-		assert_same_ptr(tinyc::LAndExpr, $3);
-		$$ = std::make_unique<tinyc::LOrExpr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2), std::move($3));
+		assert_same_ptr(toycc::LOrExpr, $1);
+		assert_same_ptr(toycc::LOrOp, $2);
+		assert_same_ptr(toycc::LAndExpr, $3);
+		$$ = std::make_unique<toycc::LOrExpr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2), std::move($3));
 	};
 
 LOrOp	
 	: "||" {
-		$$ = std::make_unique<tinyc::LOrOp>(CONSTRUCT_LOCATION(@$), tinyc::Operator::op_lor);
+		$$ = std::make_unique<toycc::LOrOp>(CONSTRUCT_LOCATION(@$), toycc::Operator::op_lor);
 	};
 
 Number
 	: INT_LITERAL{
-		$$ = std::make_unique<tinyc::Number>(CONSTRUCT_LOCATION(@$), $1);
+		$$ = std::make_unique<toycc::Number>(CONSTRUCT_LOCATION(@$), $1);
 	};
 
 Ident
 	: IDENT{
-		$$ = std::make_unique<tinyc::Ident>(CONSTRUCT_LOCATION(@$), $1);
+		$$ = std::make_unique<toycc::Ident>(CONSTRUCT_LOCATION(@$), $1);
 	};
 
 %%
@@ -484,7 +484,7 @@ namespace yy
 
 void parser::error(const location_type& loc, const std::string& m)
 {
-	loc.report(tinyc::Location::dk_error, m);
+	loc.report(toycc::Location::dk_error, m);
 }
 
 }	//namespace yy

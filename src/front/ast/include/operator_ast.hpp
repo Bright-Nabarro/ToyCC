@@ -1,8 +1,7 @@
 #pragma once
 #include "base_ast.hpp"
-#include <easylog.hpp>
 
-namespace tinyc
+namespace toycc
 {
 /**
  * @brief 所有操作符的基类
@@ -50,13 +49,15 @@ protected:
 class UnaryOp: public Operator
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_unary_op);
+	TOYCC_AST_FILL_CLASSOF(ast_unary_op);
 
 	UnaryOp(std::unique_ptr<Location> location, OperationType type):
 		Operator { ast_unary_op, std::move(location), type}
 	{
 		if (type < op_add || type > op_not)
-			yq::fatal("Invalid UnaryOp");
+		{
+			//yq::fatal("Invalid UnaryOp");
+		}
 	}
 };
 
@@ -65,13 +66,15 @@ public:
 class L3Op: public Operator
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_l3op);
+	TOYCC_AST_FILL_CLASSOF(ast_l3op);
 
 	L3Op(std::unique_ptr<Location> location, OperationType type):
 		Operator(ast_l3op, std::move(location), type)
 	{
 		if (get_type() < op_mul || get_type() > op_mod)
-			yq::fatal("Invalid L3Op");
+		{
+			//yq::fatal("Invalid L3Op");
+		}
 	}
 };
 
@@ -80,13 +83,15 @@ public:
 class L4Op: public Operator
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_l4op);
+	TOYCC_AST_FILL_CLASSOF(ast_l4op);
 
 	L4Op(std::unique_ptr<Location> location, OperationType type):
 		Operator(ast_l4op, std::move(location), type)
 	{
 		if (get_type() < op_add || get_type() > op_not)
-			yq::fatal("Invalid L4Op");
+		{
+			//yq::fatal("Invalid L4Op");
+		}
 	}
 };
 
@@ -97,13 +102,15 @@ public:
 class L6Op: public Operator
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_l6op);
+	TOYCC_AST_FILL_CLASSOF(ast_l6op);
 
 	L6Op(std::unique_ptr<Location> location, OperationType type):
 		Operator(ast_l6op, std::move(location), type)
 	{
 		if (get_type() < op_lt || get_type() > op_ge)
-			yq::fatal("Invalid L6Op");
+		{
+			//yq::fatal("Invalid L6Op");
+		}
 	}
 };
 
@@ -114,13 +121,16 @@ public:
 class L7Op : public Operator
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_l7op)
+	TOYCC_AST_FILL_CLASSOF(ast_l7op)
 
 	L7Op(std::unique_ptr<Location> location, OperationType type)
 		: Operator{ast_l7op, std::move(location), type}
 	{
 		if (get_type() < op_eq || get_type() > op_ne)
-			yq::fatal("Invalid L7Op");
+		{
+			//yq::fatal("Invalid L7Op");
+		}
+		
 	}
 };
 
@@ -131,12 +141,14 @@ public:
 class LAndOp: public Operator
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_land_op);
+	TOYCC_AST_FILL_CLASSOF(ast_land_op);
 	LAndOp(std::unique_ptr<Location> location, OperationType type)
 		: Operator{ast_land_op, std::move(location), type}
 	{
 		if (get_type() != op_land)
-			yq::fatal("Invalid LAndOp");
+		{
+			//yq::fatal("Invalid LAndOp");
+		}
 	}
 };
 
@@ -147,13 +159,15 @@ public:
 class LOrOp: public Operator
 {
 public:
-	TINYC_AST_FILL_CLASSOF(ast_lor_op);
+	TOYCC_AST_FILL_CLASSOF(ast_lor_op);
 	LOrOp(std::unique_ptr<Location> location, OperationType type)
 		: Operator{ast_lor_op, std::move(location), type}
 	{
 		if (get_type() != op_lor)
-			yq::fatal("Invalid LOrOp");
+		{
+			//yq::fatal("Invalid LOrOp");
+		}
 	}
 };
 
-}	//namespace tinyc
+}	//namespace toycc

@@ -3,7 +3,6 @@
 #include "ast.hpp"
 #include "type_mgr.hpp"
 #include "conversion.hpp"
-#include <easylog.hpp>
 #include <memory>
 #include <expected>
 #include <llvm/IR/IRBuilder.h>
@@ -12,7 +11,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Support/SourceMgr.h>
 
-namespace tinyc
+namespace toycc
 {
 
 class CodeGenVisitor: public ASTVisitor
@@ -110,5 +109,5 @@ private:
 	llvm::TargetMachine* m_target_machine;
 };
 
-}	//namespace tinyc
+}	//namespace toycc
 

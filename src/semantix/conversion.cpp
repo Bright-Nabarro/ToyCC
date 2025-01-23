@@ -1,9 +1,10 @@
 #include <llvm/IR/Type.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/IR/DerivedTypes.h>
+#include <spdlog/spdlog.h>
 #include "conversion.hpp"
 
-namespace tinyc
+namespace toycc
 {
 
 namespace utils
@@ -15,7 +16,7 @@ auto make_error_code(conversion_error e) -> std::error_code
 	return { static_cast<int>(e), instance };
 };
 
-}	//namespace tinyc::utils
+}	//namespace toycc::utils
 
 
 
@@ -99,6 +100,6 @@ auto LLVMConversionHelper::int_cvt(std::shared_ptr<IType> left,
 	return left;
 }
 
-}	//namespace tinyc
+}	//namespace toycc
 
 
