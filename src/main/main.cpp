@@ -1,7 +1,6 @@
 #include "driver.hpp"
 #include "code_gen_visitor.hpp"
 #include "emit_target.hpp"
-#include <print>
 #include <llvm/CodeGen/CommandFlags.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/CommandLine.h>
@@ -10,8 +9,6 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/TargetParser/Host.h>
 #include <llvm/TargetParser/Triple.h>
-#include <spdlog/spdlog.h>
-#include <spdlog/async.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 
@@ -102,19 +99,20 @@ auto create_target_machine() -> llvm::TargetMachine*
  * @brief 词法分析，语法分析
  * @ret 错误返回nullptr
  */
-auto lex_and_parse(llvm::SourceMgr& src_mgr, std::string_view file, auto& global_sink)
+auto frontend_procedure(llvm::SourceMgr& src_mgr, std::string_view file, auto& global_sink)
 	-> std::unique_ptr<toycc::CompUnit>
 {
-	toycc::DriverFactory driver_factory { src_mgr };
-
+	// 初始化编译器前端logger
 	auto front_logger = std::make_shared<spdlog::async_logger>("front", global_sink,
 		spdlog::thread_pool(), spdlog::async_overflow_policy::block);
 	spdlog::register_logger(front_logger);
 
+	toycc::DriverFactory driver_factory { src_mgr, front_logger };
+
 	auto driver_or_error = driver_factory.produce_driver(file);
 	if (!driver_or_error)
 	{
-		front_logger->info("{}", driver_or_error.error());
+		front_logger->error("{}", driver_or_error.error());
 		return nullptr;
 	}
 
@@ -125,6 +123,26 @@ auto lex_and_parse(llvm::SourceMgr& src_mgr, std::string_view file, auto& global
 		return nullptr;
 
 	return driver->get_ast_unique();
+}
+
+/**
+ * @brief 语义分析，中间代码生成
+ */
+auto backend_procedure(llvm::LLVMContext& ctx, llvm::SourceMgr& src_mgr,
+					   llvm::TargetMachine* tm, auto logger, auto ast)
+	-> std::unique_ptr<llvm::Module>
+{
+	
+	// 语义分析，中间代码生成
+	toycc::CodeGenVisitor visitor(ctx, src_mgr, tm);
+	auto void_or_error = visitor.visit(ast.get());
+	if (!void_or_error)
+	{
+		logger->error("{}", void_or_error.error());
+		return nullptr;
+	}
+
+	return visitor.get_module();
 }
 
 auto main(int argc, char* argv[]) -> int
@@ -157,30 +175,32 @@ auto main(int argc, char* argv[]) -> int
 	spdlog::register_logger(backend_logger);
 
 	// 词法，语法分析
-	auto ast = lex_and_parse(src_mgr, input_file.getValue(), global_sink);
+	auto ast = frontend_procedure(src_mgr, input_file.getValue(), global_sink);
 	if (ast == nullptr)
+	{
+		backend_logger->error("frontend procedure error");
 		return 1;
+	}
 
 	// 语义分析，中间代码生成
-	toycc::CodeGenVisitor visitor(ctx, src_mgr, tm);
-	auto void_or_error = visitor.visit(ast.get());
-	if (!void_or_error)
+	auto module = backend_procedure(ctx, src_mgr, tm, backend_logger, std::move(ast));
+	if (module == nullptr)
 	{
-		backend_logger->info("{}", void_or_error.error());
+		backend_logger->error("backend procedure error");
 		return 1;
 	}
 
 	//生成目标文件 (llvm-ir, 汇编或二进制.o)
 	toycc::EmitTarget emit{input_file.getValue(), tm, emit_llvm.getValue(),
-						   optimization.getValue()};
+						   optimization.getValue(), backend_logger};
+
 	if (!output_file.empty())
 		emit.set_target_name(output_file.getValue());
 
-	void_or_error = emit(visitor.get_module());
+	auto void_or_error = emit(std::move(module));
 	if (!void_or_error)
 	{
-		std::println(stderr, "{}", void_or_error.error());
-		backend_logger->info("{}", void_or_error.error());
+		backend_logger->error("{}", void_or_error.error());
 		return 1;
 	}
 

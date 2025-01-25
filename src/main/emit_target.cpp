@@ -11,19 +11,21 @@ namespace toycc
 
 EmitTarget::EmitTarget(std::string_view inputfile_name,
 		   llvm::TargetMachine* target_machine, bool emit_llvm,
-		   std::string optimization_level):
+		   std::string optimization_level,
+		   std::shared_ptr<spdlog::async_logger> logger):
 	m_inputfile_name { inputfile_name }, m_target_name { std::nullopt },
 	m_target_machine { target_machine }, m_emit_llvm { emit_llvm },
-	m_optimization_level { optimization_level }
+	m_optimization_level { optimization_level }, m_logger { logger }
 {
 }
 
 EmitTarget::EmitTarget(std::string_view inputfile_name, std::string_view target_name,
 		   llvm::TargetMachine* target_machine, bool emit_llvm,
-		   std::string optimization_level):
+		   std::string optimization_level,
+		   std::shared_ptr<spdlog::async_logger> logger):
 	m_inputfile_name { inputfile_name }, m_target_name { target_name },
 	m_target_machine { target_machine }, m_emit_llvm { emit_llvm },
-	m_optimization_level { optimization_level }
+	m_optimization_level { optimization_level }, m_logger { logger }
 {
 }
 
@@ -50,7 +52,7 @@ auto EmitTarget::operator()(std::unique_ptr<llvm::Module> module)
 		break;
 	case assembly:
 	case llvm_bin:
-	case object:
+	case object: {
 		auto error = m_target_machine->addPassesToEmitFile(
 			pm, os, nullptr, llvm::codegen::getFileType());
 		if (error)
@@ -58,6 +60,11 @@ auto EmitTarget::operator()(std::unique_ptr<llvm::Module> module)
 			return std::unexpected { "No support for file type" };
 		}
 		break;
+	}
+	case unkown:
+		return std::unexpected { "operatoer() get an unknown target type" };
+	default:
+		assert(false && "Unhandled TargetType");
 	}
 
 	pm.run(*module);
@@ -81,8 +88,9 @@ auto EmitTarget::get_target_type() -> TargetType
 		if (m_emit_llvm)
 			return llvm_ir;
 		return object;
-	//default:
-		//yq::error(yq::loc(), "unkown target type");
+	default:
+		m_logger->error("unknown target type");
+		return unkown;
 	}
 }
 
@@ -121,6 +129,8 @@ auto EmitTarget::get_target_name() -> std::string
 	case object:
 		result += ".o";
 		break;
+	case unkown:
+		m_logger->error("Unknown target type encountered in EmitTarget::get_target_name. ");
 	}
 
 	return result;

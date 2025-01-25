@@ -6,15 +6,11 @@
 namespace toycc
 {
 
-Driver::Driver(llvm::SourceMgr& src_mgr):
-	m_ast {},
-	m_src_mgr { src_mgr },
-	m_bufferid {},
-	m_debug_trace { false },
-	m_parser {},
-	m_location {}
+Driver::Driver(llvm::SourceMgr& src_mgr,
+			   std::shared_ptr<spdlog::async_logger> logger)
+	: m_ast{}, m_src_mgr{src_mgr}, m_bufferid{}, m_debug_trace{false},
+	  m_parser{}, m_location{}, m_logger { logger }
 {
-
 }
 
 auto Driver::construct(std::string_view file_name)
@@ -65,7 +61,7 @@ auto DriverFactory::produce_driver(std::string_view file_name)
 		-> std::expected<std::unique_ptr<Driver>, std::string>
 {
 	// 构造函数为私有，无法使用std::make_unique
-	std::unique_ptr<Driver> driver { new Driver { m_src_mgr } };
+	std::unique_ptr<Driver> driver { new Driver { m_src_mgr, m_logger } };
 
 	auto void_or_error = driver->construct(file_name);
 	if (!void_or_error)

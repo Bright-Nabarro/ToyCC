@@ -3,6 +3,8 @@
 #include <expected>
 #include <llvm/Target/TargetMachine.h>
 #include <string>
+#include <spdlog/spdlog.h>
+#include <spdlog/async.h>
 
 namespace toycc
 {
@@ -16,15 +18,18 @@ public:
 		llvm_bin,
 		assembly,
 		object,
+		unkown,
 	};
 
 	EmitTarget(std::string_view inputfile_name,
 			   llvm::TargetMachine* target_machine, bool emit_llvm,
-			   std::string m_optimization_level);
+			   std::string m_optimization_level,
+			   std::shared_ptr<spdlog::async_logger> logger);
 
 	EmitTarget(std::string_view inputfile_name, std::string_view target_name,
 			   llvm::TargetMachine* target_machine, bool emit_llvm,
-			   std::string m_optimization_level);
+			   std::string m_optimization_level,
+			   std::shared_ptr<spdlog::async_logger> logger);
 
 	void set_target_name(std::string_view target_name)
 	{ m_target_name = target_name; }
@@ -48,6 +53,7 @@ private:
 	llvm::TargetMachine* m_target_machine;
 	bool m_emit_llvm;
 	std::string m_optimization_level;
+	std::shared_ptr<spdlog::async_logger> m_logger;
 };
 
 }	//namespace toycc

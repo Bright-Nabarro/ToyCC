@@ -6,6 +6,8 @@
 #include <string_view>
 #include <expected>
 #include <memory>
+#include <spdlog/spdlog.h>
+#include <spdlog/async.h>
 #include "ast.hpp"
 #include "bison_parser.hpp"
 #include "llvm_location.hpp"
@@ -27,7 +29,8 @@ class Driver
 {
 	friend class DriverFactory;
 private:
-	Driver(llvm::SourceMgr& src_mgr);
+	Driver(llvm::SourceMgr& src_mgr,
+		   std::shared_ptr<spdlog::async_logger> logger);
 
 public:
 	/*
@@ -88,6 +91,7 @@ private:
 	bool m_debug_trace;
 	std::unique_ptr<yy::parser> m_parser;
 	LLVMLocation m_location;
+	std::shared_ptr<spdlog::async_logger> m_logger;
 };
 
 
@@ -99,8 +103,10 @@ private:
 class DriverFactory
 {
 public:
-	DriverFactory(llvm::SourceMgr& src_mgr):
-		m_src_mgr { src_mgr }
+	DriverFactory(llvm::SourceMgr& src_mgr,
+				  std::shared_ptr<spdlog::async_logger> logger):
+		m_src_mgr { src_mgr },
+		m_logger { logger }
 	{}
 
 	auto produce_driver(std::string_view file_name)
@@ -108,6 +114,7 @@ public:
 
 private:
 	llvm::SourceMgr& m_src_mgr;
+	std::shared_ptr<spdlog::async_logger> m_logger;
 };
 
 }	//namespace toycc

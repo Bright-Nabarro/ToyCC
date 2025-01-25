@@ -1,4 +1,6 @@
 #pragma once
+#include <cassert>
+#include <format>
 #include "base_ast.hpp"
 
 namespace toycc
@@ -42,6 +44,14 @@ protected:
 	OperationType m_type;
 };
 
+#define OP_TYPE_CHECK(expr, param_type)                                        \
+	do                                                                         \
+	{                                                                          \
+		assert((expr) &&                                                       \
+			   std::format("Invalid OperationType for {} {}", get_kind_str(),  \
+						   static_cast<int>(param_type))                       \
+				   .c_str());                                                  \
+	} while (0)
 
 /**
  * UnaryOp ::= "+" | "-" | "!";
@@ -54,10 +64,7 @@ public:
 	UnaryOp(std::unique_ptr<Location> location, OperationType type):
 		Operator { ast_unary_op, std::move(location), type}
 	{
-		if (type < op_add || type > op_not)
-		{
-			//yq::fatal("Invalid UnaryOp");
-		}
+		OP_TYPE_CHECK(get_type() < op_add || get_type() > op_not, type);
 	}
 };
 
@@ -71,10 +78,7 @@ public:
 	L3Op(std::unique_ptr<Location> location, OperationType type):
 		Operator(ast_l3op, std::move(location), type)
 	{
-		if (get_type() < op_mul || get_type() > op_mod)
-		{
-			//yq::fatal("Invalid L3Op");
-		}
+		OP_TYPE_CHECK(get_type() < op_mul || get_type() > op_mod, type);
 	}
 };
 
@@ -88,10 +92,7 @@ public:
 	L4Op(std::unique_ptr<Location> location, OperationType type):
 		Operator(ast_l4op, std::move(location), type)
 	{
-		if (get_type() < op_add || get_type() > op_not)
-		{
-			//yq::fatal("Invalid L4Op");
-		}
+		OP_TYPE_CHECK(get_type() < op_add || get_type() > op_not, type);
 	}
 };
 
@@ -107,10 +108,7 @@ public:
 	L6Op(std::unique_ptr<Location> location, OperationType type):
 		Operator(ast_l6op, std::move(location), type)
 	{
-		if (get_type() < op_lt || get_type() > op_ge)
-		{
-			//yq::fatal("Invalid L6Op");
-		}
+		OP_TYPE_CHECK(get_type() < op_lt || get_type() > op_ge, type);
 	}
 };
 
@@ -126,11 +124,7 @@ public:
 	L7Op(std::unique_ptr<Location> location, OperationType type)
 		: Operator{ast_l7op, std::move(location), type}
 	{
-		if (get_type() < op_eq || get_type() > op_ne)
-		{
-			//yq::fatal("Invalid L7Op");
-		}
-		
+		OP_TYPE_CHECK(get_type() < op_eq || get_type() > op_ne, type);
 	}
 };
 
@@ -145,10 +139,7 @@ public:
 	LAndOp(std::unique_ptr<Location> location, OperationType type)
 		: Operator{ast_land_op, std::move(location), type}
 	{
-		if (get_type() != op_land)
-		{
-			//yq::fatal("Invalid LAndOp");
-		}
+		OP_TYPE_CHECK(get_type() == op_land, type);
 	}
 };
 
@@ -163,10 +154,7 @@ public:
 	LOrOp(std::unique_ptr<Location> location, OperationType type)
 		: Operator{ast_lor_op, std::move(location), type}
 	{
-		if (get_type() != op_lor)
-		{
-			//yq::fatal("Invalid LOrOp");
-		}
+		OP_TYPE_CHECK(get_type() == op_lor, type);
 	}
 };
 

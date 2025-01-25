@@ -1,3 +1,4 @@
+#include <cassert>
 #include "base_components_ast.hpp"
 
 namespace toycc
@@ -27,10 +28,8 @@ auto Ident::get_value() const -> std::string_view
 ScalarType::ScalarType(std::unique_ptr<Location> location, BuiltinTypeEnum type)
 	: BaseAST { ast_scalar_type, std::move(location) }, m_type { type }
 {
-	if (m_type == BuiltinTypeEnum::ty_void)
-	{
-		//yq::error("Expected type void in ScalarType constructor");
-	}
+	assert(m_type != BuiltinTypeEnum::ty_void
+		&& "ScalarType doesnot support void type");
 }
 
 auto ScalarType::get_type() const -> BuiltinTypeEnum
