@@ -1,6 +1,3 @@
-#include "driver.hpp"
-#include "code_gen_visitor.hpp"
-#include "emit_target.hpp"
 #include <llvm/CodeGen/CommandFlags.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/CommandLine.h>
@@ -10,6 +7,11 @@
 #include <llvm/TargetParser/Host.h>
 #include <llvm/TargetParser/Triple.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+
+#include "driver.hpp"
+#include "codegen_visitor.hpp"
+#include "emit_target.hpp"
+#include "codegen_context.hpp"
 
 
 //帮助codegen 生成target_options
@@ -61,7 +63,7 @@ static llvm::cl::opt<std::string> optimization {
 	llvm::cl::init("0")
 };
 
-auto create_target_machine() -> llvm::TargetMachine*
+auto create_target_machine() -> std::unique_ptr<llvm::TargetMachine>
 {
 	//三元组包括: 架构, 供应商, 操作系统环境
 	auto triple = llvm::Triple {
@@ -88,9 +90,9 @@ auto create_target_machine() -> llvm::TargetMachine*
 	// 创建目标机器
 	// getTriple 返回三元组字符串表示
 	// 指定目标的重定位模型：静态，动态(位置无关)
-	auto tm = target->createTargetMachine(
+	auto tm = std::unique_ptr<llvm::TargetMachine> (target->createTargetMachine(
 		triple.getTriple(), cpu_str, feature_str, target_options,
-		std::optional<llvm::Reloc::Model>{llvm::codegen::getRelocModel()});
+		std::optional<llvm::Reloc::Model>{llvm::codegen::getRelocModel()}));
 
 	return tm;
 }
@@ -128,13 +130,13 @@ auto frontend_procedure(llvm::SourceMgr& src_mgr, std::string_view file, auto& g
 /**
  * @brief 语义分析，中间代码生成
  */
-auto backend_procedure(llvm::LLVMContext& ctx, llvm::SourceMgr& src_mgr,
-					   llvm::TargetMachine* tm, auto logger, auto ast)
+auto backend_procedure(toycc::CodeGenContext& cgc, llvm::SourceMgr& src_mgr,
+					   auto logger, auto ast)
 	-> std::unique_ptr<llvm::Module>
 {
 	
 	// 语义分析，中间代码生成
-	toycc::CodeGenVisitor visitor(ctx, src_mgr, tm);
+	toycc::CodeGenVisitor visitor(cgc.get_llvm_context(), src_mgr, cgc.get_target_machine());
 	auto void_or_error = visitor.visit(ast.get());
 	if (!void_or_error)
 	{
@@ -165,7 +167,8 @@ auto main(int argc, char* argv[]) -> int
 	if (tm == nullptr)
 		return 1;
 
-	llvm::LLVMContext ctx;
+	toycc::CodeGenContext cg_context { "toycc.expr", std::move(tm) };
+
 	// 全局的源码管理
 	llvm::SourceMgr src_mgr;
 
@@ -183,7 +186,7 @@ auto main(int argc, char* argv[]) -> int
 	}
 
 	// 语义分析，中间代码生成
-	auto module = backend_procedure(ctx, src_mgr, tm, backend_logger, std::move(ast));
+	auto module = backend_procedure(cg_context, src_mgr, backend_logger, std::move(ast));
 	if (module == nullptr)
 	{
 		backend_logger->error("backend procedure error");
@@ -191,7 +194,7 @@ auto main(int argc, char* argv[]) -> int
 	}
 
 	//生成目标文件 (llvm-ir, 汇编或二进制.o)
-	toycc::EmitTarget emit{input_file.getValue(), tm, emit_llvm.getValue(),
+	toycc::EmitTarget emit{input_file.getValue(), cg_context.get_target_machine(), emit_llvm.getValue(),
 						   optimization.getValue(), backend_logger};
 
 	if (!output_file.empty())
