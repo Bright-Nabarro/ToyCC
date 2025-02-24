@@ -31,6 +31,11 @@ void LLVMLocation::set_src_mgr(const llvm::SourceMgr* src_mgr) const
 	m_src_mgr = src_mgr;
 }
 
+void LLVMLocation::set_logger(std::shared_ptr<spdlog::async_logger> logger)
+{
+	m_logger = logger;
+}
+
 auto LLVMLocation::get_range() const -> llvm::SMRange
 {
 	return llvm::SMRange { begin, end };
@@ -70,10 +75,9 @@ auto LLVMLocation::cvt_kind_to_llvm(Location::DiagKind kind)
 		return llvm::SourceMgr::DK_Remark;
 	case Location::dk_note:
 		return llvm::SourceMgr::DK_Note;
-	//default:
-		//yq::error(yq::loc(), "unkown DiagKind");
+	default:
+		assert(false && "unkown DiagKind");
 	}
-	assert(false);
 }
 
 auto operator<< (std::ostream& os, const LLVMLocation& loc) -> std::ostream&

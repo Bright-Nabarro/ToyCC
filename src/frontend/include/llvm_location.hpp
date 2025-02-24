@@ -3,6 +3,7 @@
 #include <llvm/Support/SMLoc.h>
 #include <llvm/Support/SourceMgr.h>
 #include <ostream>
+#include <spdlog/async.h>
 #include "base_ast.hpp"
 
 #define YYLLOC_DEFAULT(Cur, Rhs, N)                                            \
@@ -64,6 +65,9 @@ public:
 	/// @note 需要在report前调用
 	void set_src_mgr(const llvm::SourceMgr* src_mgr) const;
 
+	/// @note 与set_src_mgr类似
+	void set_logger(std::shared_ptr<spdlog::async_logger> logger);
+
 	/// @brief 查询某个级别输出信息的次数
 	static
 	auto search_counter(Location::DiagKind kind) -> std::size_t;
@@ -81,6 +85,7 @@ private:
 	mutable
 	const llvm::SourceMgr* m_src_mgr;
 
+	std::shared_ptr<spdlog::async_logger> m_logger;
 };
 
 auto operator<< (std::ostream& o, const LLVMLocation& loc) -> std::ostream&;

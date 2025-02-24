@@ -136,7 +136,8 @@ auto backend_procedure(toycc::CodeGenContext& cgc, llvm::SourceMgr& src_mgr,
 {
 	
 	// 语义分析，中间代码生成
-	toycc::CodeGenVisitor visitor(cgc.get_llvm_context(), src_mgr, cgc.get_target_machine());
+	toycc::CodeGenVisitor visitor{cgc.get_llvm_context(), src_mgr,
+								  cgc.get_target_machine(), logger};
 	auto void_or_error = visitor.visit(ast.get());
 	if (!void_or_error)
 	{

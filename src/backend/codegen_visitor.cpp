@@ -16,12 +16,15 @@
 namespace toycc
 {
 
-CodeGenVisitor::CodeGenVisitor(llvm::LLVMContext& context, llvm::SourceMgr& src_mgr, llvm::TargetMachine* tm):
-	m_module { std::make_unique<llvm::Module>("toycc.expr", context) },
-	m_builder { m_module->getContext() },
-	m_type_mgr { std::make_shared<TypeMgr>(m_module->getContext(), tm) },
-	m_src_mgr { src_mgr },
-	m_target_machine { tm }
+CodeGenVisitor::CodeGenVisitor(llvm::LLVMContext& context,
+							   llvm::SourceMgr& src_mgr,
+							   llvm::TargetMachine* tm,
+							   std::shared_ptr<spdlog::async_logger> logger)
+	: m_module{std::make_unique<llvm::Module>("toycc.expr", context)},
+	  m_builder{m_module->getContext()},
+	  m_type_mgr{std::make_shared<TypeMgr>(m_module->getContext(), tm)},
+	  m_src_mgr{src_mgr}, m_target_machine{tm},
+	  m_logger {logger}
 {
 }
 
@@ -43,16 +46,28 @@ auto CodeGenVisitor::visit(BaseAST* ast) -> std::expected<void, std::string>
 	return {};
 }
 
+#define D_BEGIN                                                                \
+	do                                                                         \
+	{                                                                          \
+		m_logger->debug("{} Begin", node.get_kind_str());                      \
+	} while (0);
+
+#define D_END                                                                  \
+	do                                                                         \
+	{                                                                          \
+		m_logger->debug("{} End", node.get_kind_str());                        \
+	} while (0);
+
 void CodeGenVisitor::handle(const CompUnit& node)
 {
-	//yq::debug("CompUnitBegin:");
+	D_BEGIN;
 	handle(node.get_func_def());
-	//yq::debug("CompUnitEnd");
+	D_END;
 }
 
 void CodeGenVisitor::handle(const FuncDef& node)
 {
-	//yq::debug("FuncDefBegin:");
+	D_BEGIN;
 	auto return_type = handle(node.get_type());
 	auto func_name = handle(node.get_ident());
 	auto param_types = handle(node.get_paramlist());
@@ -68,12 +83,13 @@ void CodeGenVisitor::handle(const FuncDef& node)
 							   func_name, m_module.get());
 	handle(node.get_block(), func, "entry");
 
-	//yq::debug("FuncDefEnd");
+	D_END;
 }
 
 auto CodeGenVisitor::handle(const BuiltinType& node) -> llvm::Type*
 {
-	//yq::debug("Type[{}]Begin: ", node.get_type_str());
+	D_BEGIN;
+
 	llvm::Type* ret;
 	switch(node.get_type())
 	{
@@ -87,18 +103,17 @@ auto CodeGenVisitor::handle(const BuiltinType& node) -> llvm::Type*
 		ret = m_type_mgr->get_void();
 		break;
 	default:
-		//yq::fatal(yq::loc(), "Unkown TypeEnum int toycc::Type when handling "
-		//		 "toycc::Type to llvm::Type*");
-		ret = nullptr;
-		break;
+		assert(false &&"toycc::Type to llvm::Type*");
 	}
-	//yq::debug("Type[{}]End", node.get_type_str());
-	
+
+	D_END;
+
 	return ret;
 }
 
 auto CodeGenVisitor::handle(const ScalarType& node) -> llvm::Type*
 {
+	D_BEGIN;
 	llvm::Type* ret;
 	switch(node.get_type())
 	{
@@ -109,30 +124,25 @@ auto CodeGenVisitor::handle(const ScalarType& node) -> llvm::Type*
 		ret = m_type_mgr->get_unsigned_int();
 		break;
 	default:
-		//yq::fatal(yq::loc(), "Unkown TypeEnum int toycc::Type when handling "
-		//		 "toycc::Type to llvm::Type*");
-		ret = nullptr;
-		break;
+		assert(false && "Unkown TypeEnum int toycc::Type when handling "
+			  "toycc::Type to llvm::Type*");
 	}
-
+	D_END;
 	return ret;
 }
 
 
 auto CodeGenVisitor::handle(const Ident& node) -> std::string_view
 {
-	//yq::debug("Ident[{}]Begin:", node.get_value());
-	
+	D_BEGIN;
 	std::string_view name = node.get_value();
-
-	//yq::debug("Ident[{}]End:", node.get_value());
-
+	D_END;
 	return name;
 }
 
 auto CodeGenVisitor::handle(const ParamList& node) -> std::vector<llvm::Type*>
 {
-	//yq::debug("ParamListBegin: ");
+	D_BEGIN;
 	std::vector<llvm::Type*> type_list;
 	type_list.reserve(node.get_params().size());
 
@@ -141,69 +151,67 @@ auto CodeGenVisitor::handle(const ParamList& node) -> std::vector<llvm::Type*>
 		assert(param != nullptr);
 		type_list.push_back(handle(*param));
 	}
-
-	//yq::debug("ParamListEnd");
-
+	D_END;
 	return type_list;
 }
 
 auto CodeGenVisitor::handle(const Block& node, llvm::Function* func,
 							std::string_view block_name) -> llvm::BasicBlock*
 {
-	//yq::debug("BlockBegin: ");
+	D_BEGIN;
 
 	auto basic_block =
 		llvm::BasicBlock::Create(m_module->getContext(), block_name.data(), func);
 	m_builder.SetInsertPoint(basic_block);
 
-	//yq::debug("BlockEnd");
-
+	D_END;
 	return basic_block;
 }
 
 void CodeGenVisitor::handle(const BlockItemList& node)
 {
-	//yq::debug("BlockItemListBegin:" );
+	D_BEGIN;
 	for (const auto& block_item : node)
 	{
 		assert(block_item != nullptr);
 		handle(*block_item);
 	}
-	//yq::debug("BlockItemListEnd");
+	D_END;
+
 }
 
 void CodeGenVisitor::handle(const BlockItem& node)
 {
-	//yq::debug("BlockItemBegin: ");
+	D_BEGIN;
 	if (node.has_decl())
 		handle(node.get_decl());
 	else if (node.has_stmt())
 		handle(node.get_stmt());
-	//yq::debug("BlockItemEnd");
+	D_END;
 }
 
 void CodeGenVisitor::handle(const Stmt& node)
 {
-	//yq::debug("StmtBegin:");
+	D_BEGIN;
 	auto value = handle(node.get_expr());
 	assert(value != nullptr);
 	
 	m_builder.CreateRet(value);
-	//yq::debug("StmtEnd");
+	D_END;
 }
 
 auto CodeGenVisitor::handle(const Expr& node) -> llvm::Value*
 {
-	//yq::debug("ExprBegin:");
+	D_BEGIN;
 	auto ret = handle(node.get_low_expr());
-	//yq::debug("ExprEnd");
+	D_END;
 
 	return ret;
 }
 
 auto CodeGenVisitor::handle(const PrimaryExpr& node) -> llvm::Value*
 {
-	//yq::debug("PrimaryExprBegin: ");
+	D_BEGIN;
 
 	llvm::Value* result = nullptr;
 	if (node.has_expr())
@@ -219,13 +227,13 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node) -> llvm::Value*
 		result = handle(node.get_number());
 	}
 
-	//yq::debug("PrimaryExprEnd");
+	D_END;
 	return result;
 }
 
 auto CodeGenVisitor::handle(const UnaryExpr& node) -> llvm::Value*
 {
-	//yq::debug("UnaryExpr Begin:");
+	D_BEGIN;
 
 	llvm::Value* result = nullptr;
 	if (node.has_unary_expr())
@@ -241,40 +249,44 @@ auto CodeGenVisitor::handle(const UnaryExpr& node) -> llvm::Value*
 	{
 		assert(false && "UnaryExpr has an unkown type in its variant");
 	}
+	D_END;
 
-	//yq::debug("UnaryExpr End");
 	return result;
 }
 
 auto CodeGenVisitor::handle(const Number& node) -> llvm::Value*
 {
-	//yq::debug("Number[{}] Begin: ", node.get_int_literal());
+	D_BEGIN;
 
 	llvm::Value* result = llvm::ConstantInt::get(m_type_mgr->get_signed_int(),
-												 node.get_int_literal());
-
-	//yq::debug("Number End");
+											 node.get_int_literal());
+	D_END;
 	return result;
 }
 
 void CodeGenVisitor::handle(const Decl& node)
 {
+	D_BEGIN;
 	handle(node.get_const_decl());
+	D_END;
 }
 
 auto CodeGenVisitor::handle(const ConstDecl& node)
 	-> std::vector<llvm::Value*>
 {
+	D_BEGIN;
 	llvm::Type* type = handle(node.get_scalar_type());
 	auto first_value = handle(node.get_first_const_def(), type);
 	auto value_list = handle(node.get_const_def_list(), type);
+	D_END;
+
 	return value_list;
 }
 
 auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type)
 	-> llvm::Value*
 {
-	//yq::debug("{} Start", node.get_kind_str());
+	D_BEGIN;
 
 	auto name = handle(node.get_ident());
 
@@ -286,7 +298,7 @@ auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type)
 									   std::make_shared<LLVMType>(right_value->getType()));
 	if (!ret)
 	{
-		//yq::error("{}", ret.error().message());
+		m_logger->error("{}", ret.error().message());
 		return nullptr;
 	}
 	llvm::Type* left_type = get_llvm_type(*ret);
@@ -294,7 +306,7 @@ auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type)
 	left_value = right_value;
 	left_value->mutateType(left_type);
 
-	//yq::debug("{} End", node.get_kind_str());
+	D_END;
 
 	return left_value;
 }
@@ -302,6 +314,7 @@ auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type)
 auto CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type)
 	-> std::vector<llvm::Value*>
 {
+	D_BEGIN;
 	std::vector<llvm::Value*> result;
 	result.resize(node.size());
 
@@ -310,37 +323,43 @@ auto CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type)
 		result.push_back(handle(*const_def_ptr, type));	
 	}
 
+	D_END;
+
 	return result;
 }
 
 auto CodeGenVisitor::handle(const ConstInitVal& node) -> llvm::Value*
 {
+	D_BEGIN;
+	D_END;
 }
 
 auto CodeGenVisitor::handle(const ConstExpr& node) -> llvm::Value*
 {
+	D_BEGIN;
 	auto result = handle(node.get_expr());
+	D_END;
 
 	return result;
 }
 
 auto CodeGenVisitor::handle(const LVal& node) -> llvm::Value*
 {
-	
+	D_BEGIN;
+	D_END;
 }
 
 
 auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 	-> llvm::Value*
 {
-	//yq::debug("UnaryOp[{}] Begin:",op.get_type_str());
-
+	m_logger->debug("UnaryOp[{}] Begin", op.get_type_str());
 	llvm::Type* type = operand->getType();
 	llvm::Value* result = nullptr;
 
 	if (!type->isIntegerTy() && !type->isFloatingPointTy())
 	{
-		//yq::error("Expected type in UnaryOp");
+		m_logger->error("Expected type in UnaryOp");
 		return nullptr;
 	}
 
@@ -373,22 +392,21 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 		break;
 	}
 	default:
-		//yq::error("Unkown operation: {}, category: {}",
-		//		  static_cast<int>(op.get_type()), op.get_type_str());
+		m_logger->error("Unkown operation: {}, category: {}",
+				  static_cast<int>(op.get_type()), op.get_type_str());
 		result = nullptr;
 	}
-	
-	//yq::debug("UnaryOp End");
 
+	m_logger->debug("UnaryOp[{}] Begin", op.get_type_str());
 	return result;
 }
 
 auto CodeGenVisitor::handle(const Param& node) -> llvm::Type*
 {
-	//yq::debug("ParamBegin: ");
+	D_BEGIN;
 	auto type = handle(node.get_type());
 	handle(node.get_ident());
-	//yq::debug("ParamEnd");
+	D_END;
 
 	return type;
 }
@@ -397,7 +415,7 @@ template<typename TBinaryExpr>
 requires std::derived_from<TBinaryExpr, BinaryExprBase>
 auto CodeGenVisitor::handle(const TBinaryExpr& node) -> llvm::Value*
 {
-	//yq::debug("{} begin:", node.get_kind_str());
+	D_BEGIN;
 
 	llvm::Value* result = nullptr;
 
@@ -415,10 +433,11 @@ auto CodeGenVisitor::handle(const TBinaryExpr& node) -> llvm::Value*
 	}
 	else
 	{
-		//yq::fatal("{}'s Variant has an unkown type", node.get_kind_str());
+		m_logger->error("{}'s Variant has an unkown type", node.get_kind_str());
+		assert(false);
 	}
+	D_END;
 
-	//yq::debug("{} end", node.get_kind_str());
 	return result;
 }
 
@@ -426,7 +445,7 @@ auto CodeGenVisitor::handle(const TBinaryExpr& node) -> llvm::Value*
 auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 									llvm::Value* right) -> llvm::Value*
 {
-	//yq::debug("{} [{}] Begin:", op.get_kind_str(), op.get_type_str());
+	m_logger->debug("{} [{}] Begin:", op.get_kind_str(), op.get_type_str());
 
 	llvm::Value* result = nullptr;
 	
@@ -475,15 +494,16 @@ auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 		right = m_builder.CreateTrunc(right, llvm::Type::getInt1Ty(m_module->getContext()));
 		result = m_builder.CreateLogicalOr(left, right);
 		break;
-	//default:
+	default:
 		//在二元运算符中
-		//yq::fatal(yq::loc(), "Unprocessed binary operate");
+		m_logger->error("Unprocessed binary operate");
+		assert(false);
 	}
 
 	assert(result != nullptr);
 	m_builder.CreateZExt(result, m_type_mgr->get_signed_int());
 
-	//yq::debug("{} [{}] End", op.get_kind_str(), op.get_type_str());
+	m_logger->debug("{} [{}] End", op.get_kind_str(), op.get_type_str());
 
 	return result;
 }

@@ -10,6 +10,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Support/SourceMgr.h>
+#include <spdlog/async.h>
 
 namespace toycc
 {
@@ -18,7 +19,7 @@ class CodeGenVisitor: public ASTVisitor
 {
 public:
 	CodeGenVisitor(llvm::LLVMContext& context, llvm::SourceMgr& src_mgr,
-				   llvm::TargetMachine* tm);
+				   llvm::TargetMachine* tm, std::shared_ptr<spdlog::async_logger> logger);
 	/// @note 只支持从根节点翻译
 	[[nodiscard]]
 	auto visit(BaseAST* ast) -> std::expected<void, std::string> override;
@@ -49,24 +50,9 @@ private:
 	auto handle(const Number& num) -> llvm::Value*;
 	auto handle(const Ident& node) -> std::string_view;
 
-	/*
-	 * =========================================
-	 * ======== Decl 处理逻辑 begin: ===========
-	 * =========================================
-	 */
 	void handle(const Decl& node);
 	auto handle(const ConstDecl& node) -> std::vector<llvm::Value*>; 
-	/*
-	 * =========================================
-	 * ======== Decl 处理逻辑 end ==============
-	 * =========================================
-	 */
 
-	/*
-	 * =========================================
-	 * ======== Stmt 处理逻辑 begin: ===========
-	 * =========================================
-	 */
 	void handle(const Stmt& node);
 	auto handle(const Expr& expr) -> llvm::Value*;
 	auto handle(const PrimaryExpr& node) -> llvm::Value*;
@@ -107,6 +93,7 @@ private:
 
 	llvm::SourceMgr& m_src_mgr;
 	llvm::TargetMachine* m_target_machine;
+	std::shared_ptr<spdlog::async_logger> m_logger;
 };
 
 }	//namespace toycc

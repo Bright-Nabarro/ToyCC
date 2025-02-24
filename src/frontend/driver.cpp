@@ -31,6 +31,7 @@ auto Driver::construct(std::string_view file_name)
 	m_location.set_begin(buf_str);
 	m_location.set_end(buf_str);
 	m_location.set_src_mgr(&m_src_mgr);
+	m_location.set_logger(m_logger);
 
 	m_parser = std::make_unique<yy::parser>(*this);
 
