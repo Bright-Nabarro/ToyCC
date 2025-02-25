@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(tinyc VERSION 0.0.1)
+project(toycc VERSION 0.0.1)
 
 option(DEBUG_MODE ON)
 option(ENABLE_TEST OFF)
@@ -41,14 +41,16 @@ find_package(LLVM REQUIRED CONFIG)
 message(STATUS "LLVM version: ${LLVM_PACKAGE_VERSION}")
 
 include(FetchContent)
-FetchContent_Declare(yq_easylog
-	GIT_REPOSITORY https://github.com/Bright-Nabarro/easylog.git
-	GIT_TAG main
+FetchContent_Declare(spdlog
+	GIT_REPOSITORY https://github.com/gabime/spdlog.git
+	GIT_TAG v1.15.0
 )
-FetchContent_MakeAvailable(yq_easylog)
+FetchContent_MakeAvailable(spdlog)
+# 禁用spdlog的异常处理
+add_definitions(-DSPDLOG_NO_EXCEPTIONS)
 
-get_target_property(easylog_type easylog TYPE)
-message(STATUS "easylog type: ${easylog_type}")
+get_target_property(spdlog_type spdlog TYPE)
+message(STATUS "spdlog type: ${spdlog_type}")
 
 #[[
 # 	正式构建程序

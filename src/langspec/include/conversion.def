@@ -1,0 +1,60 @@
+// conversion.def
+// 描述所有具有可配置的转换
+// 修改已定义类型的kind需要特别注意，有可能其在源代码中直接被指定名字, 需要同时修改源代码
+
+#ifndef CVT_KIND
+	#define CVT_KIND(kind, msg) 
+#endif
+
+#ifndef CVT_KIND_END
+	#define CVT_KIND_END(kind, msg) \
+		CVT_KIND(kind, msg)
+#endif
+
+///  左值转换
+CVT_KIND(lval_cvt, "Lvalue conversion")
+///  数组到指针转换
+CVT_KIND(arr2ptr_cvt, "Array-to-pointer conversion")
+///  函数到指针转换
+CVT_KIND(func2ptr_cvt, "Function-to-pointer conversion")
+///  兼容类型
+CVT_KIND(compatible_types_cvt, "Compatible types conversion")
+
+///  整数提升
+CVT_KIND(int_promotion, "Integer promotion")
+///  布尔转换
+CVT_KIND(bool_cvt, "Boolean conversion")
+/// 整数窄化转换
+CVT_KIND(int_narrowing, "Integer narrowing conversion")
+// 暂时搁置，llvm::IntegerType无法判断是否为有符号类型
+///// 有符号数向同级别无符号数转换
+//CVT_KIND(sign_to_unsign_same_width, "Conversion of signed integer to unsigned integer of the same width")
+///// 无符号数向同级别有符号数转换
+//CVT_KIND(unsign_to_sign_same_width, "Conversion of unsigned integer to signed integer of the same width")
+
+
+////** 需要知道确切值 **
+///// 值保持转换，同级别的有符号和无符号可以保持值的转换
+//CVT_KIND(value_preserving_cvt, "Value-preserving conversion between same-sized signed and unsigned types")
+///// 负数到同级别或更高级别无符号转换
+//CVT_KIND(neg_to_unsign_wider_or_equal, "Conversion of negative signed integer to equal or wider unsigned integer")
+///// 负数到低级别的无符号转换
+//CVT_KIND(neg_to_unsign_narrower, "Conversion of negative signed integer to narrower unsigned integer")
+///// 无符号到有符号的无法保持值的转换
+//CVT_KIND(unsign_to_sign_nonpreserving, "Non-preserving conversion of unsigned integer to signed integer")
+////********************
+
+///  浮点整数转换
+CVT_KIND(float2int_cvt, "Float-to-integer conversion")
+///  浮点数转换
+CVT_KIND(float_cvt, "Float conversion")
+///  指针转换
+CVT_KIND_END(voidpointer_cvt, "Void pointer conversion")
+
+#ifdef CVT_KIND
+	#undef CVT_KIND
+#endif
+
+#ifdef CVT_KIND_END
+	#undef CVT_KIND_END
+#endif

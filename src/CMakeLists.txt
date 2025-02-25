@@ -8,7 +8,7 @@ set(LLVM_LINK_COMPONENTS
 include(Utils)
 include(AddLLVM)
 
-add_subdirectory(front)
-add_subdirectory(semantix)
-add_subdirectory(main)
+add_subdirectory(frontend)
+add_subdirectory(langspec)
+add_subdirectory(backend)
 
