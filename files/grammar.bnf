@@ -24,7 +24,7 @@ ConstDef		::= Ident "=" ConstInitVal; 	# 赋值的逻辑在其handler中完成
 	[未开始] ConstInitVal 	::= ConstExpr;
 ConstExpr		::= Expr;
 
-# 块
+# 块 (暂时不支持嵌套块)
 	[没有作用域处理] Block       	::= "{" BlockItemList "}";
 BlockItemList 	::= /* empty */ | BlockItem BlockItemList
 ## 每个BlockItem 就是分号分隔的语句

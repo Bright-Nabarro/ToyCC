@@ -24,34 +24,30 @@ auto make_error_code(conversion_error e) -> std::error_code
  *	INTERFACE PUBLIC
  */
 
-auto IConversionHelper::value_conversion(std::shared_ptr<IType> left,
-					  std::shared_ptr<IType> right)
-	-> std::expected<std::shared_ptr<IType>, std::error_code>
+auto ConversionHelper::value_conversion(llvm::Type* left, llvm::Type* right)
+	-> ConversionResult
 {
-	
+	auto result = ConversionResult::failure(utils::conversion_error::unsupport_cvt);
+	if (left->isIntegerTy() && right->isIntegerTy())
+	{
+		result = arithmetic_int_promotion(llvm::cast<llvm::IntegerType>(left),
+										  llvm::cast<llvm::IntegerType>(right));
+	}
+
+	return result;
 }
 
-
-auto IConversionHelper::arithmetic_conversion(std::shared_ptr<IType> left,
-						   std::shared_ptr<IType> right)
-	-> std::expected<std::shared_ptr<IType>, std::error_code>
+auto ConversionHelper::arithmetic_conversion(llvm::Type* left,
+											 llvm::Type* right)
+	-> ConversionResult
 {
-	std::expected<std::shared_ptr<IType>, std::error_code> result =
-		std::unexpected<std::error_code>{
-			utils::conversion_error::unsupport_cvt};
+	auto result = ConversionResult::failure(utils::conversion_error::unsupport_cvt);
 
-	if (left->is_integer_ty() && right->is_integer_ty())
+	if (left->isIntegerTy() && right->isIntegerTy())
 	{
-		result = int_promotion(left, right);
+		result = arithmetic_int_promotion(left, right);
 	}
-	
-	/*
-	 *===========================================================
-	 *      这里需要向日志输出错误，左值和右值的类型描述
-	 *===========================================================
-	 */
 
-	
 	return result;
 }
 
@@ -70,34 +66,51 @@ auto IConversionHelper::arithmetic_conversion(std::shared_ptr<IType> left,
 //	
 //}
 
-auto LLVMConversionHelper::int_promotion(std::shared_ptr<IType> left,
-										 std::shared_ptr<IType> right) const
-	-> std::expected<std::shared_ptr<IType>, std::error_code> 
+auto ConversionHelper::arithmetic_int_promotion(llvm::Type* left,
+												llvm::Type* right) const
+	-> ConversionResult
 {
-	assert(left->is_integer_ty());
-	assert(right->is_integer_ty());
+	assert(left->isIntegerTy());
+	assert(right->isIntegerTy());
 
-	if (!m_config->enable_int_cvt)
-		return std::unexpected<std::error_code>(utils::conversion_error::int_promotion);
+	if (!m_config->enable_int_promotion)
+		return ConversionResult::failure(utils::conversion_error::int_promotion);
 
-	auto left_width = left->get_integer_bit_width();
-	auto right_width = right->get_integer_bit_width();
+	auto left_width = left->getIntegerBitWidth();
+	auto right_width = right->getIntegerBitWidth();
 	auto bigger = left_width > right_width ? left_width : right_width;
 
-	std::shared_ptr<IType> ret =
-		std::make_shared<LLVMType>(llvm::Type::getIntNTy(m_context, bigger));
+	llvm::Type* type = llvm::Type::getIntNTy(m_context, bigger);
 
-	return ret;
+	return ConversionResult::success(type);
 }
 
-auto LLVMConversionHelper::int_cvt(std::shared_ptr<IType> left,
-								   std::shared_ptr<IType> right) const
-	-> std::expected<std::shared_ptr<IType>, std::error_code>
+auto ConversionHelper::value_int_conversions(llvm::IntegerType* left,
+											 llvm::IntegerType* right) const
+	-> ConversionResult
 {
-	if (!m_config->enable_int_cvt)
-		return std::unexpected<std::error_code>(utils::conversion_error::int_cvt);
+	auto left_width = left->getIntegerBitWidth();
+	auto right_width = right->getIntegerBitWidth();
 	
-	return left;
+	if (left_width == right_width)
+	{
+		return ConversionResult::success(left);
+	}
+	else if (left_width > right_width)
+	{
+		if (m_config->enable_int_promotion)
+			return ConversionResult::success(left);
+		else
+			return ConversionResult::failure(utils::conversion_error::int_promotion);
+	}
+	else
+	{
+		if (m_config->enable_int_narrowing)
+			return ConversionResult::warning(left, utils::conversion_error::int_narrowing);
+		else
+			return ConversionResult::failure(utils::conversion_error::int_narrowing);
+	}
+	
 }
 
 }	//namespace toycc

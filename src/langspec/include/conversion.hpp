@@ -4,7 +4,6 @@
 #include <memory>
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Type.h>
-#include "type.hpp"
 
 namespace toycc
 {
@@ -76,6 +75,41 @@ struct is_error_code_enum<toycc::utils::conversion_error> : true_type
 namespace toycc
 {
 
+enum class ConversionStatus
+{
+	success = 0,
+	warning,
+	failure
+};
+
+struct ConversionResult
+{
+	ConversionStatus status;
+	llvm::Type* result_type = nullptr;
+	std::error_code ec;
+    // 辅助构造函数
+	static auto success(llvm::Type* type) -> ConversionResult
+	{
+		return {ConversionStatus::success, type, utils::conversion_error::none};
+	}
+
+	static auto warning(llvm::Type* type,
+									 utils::conversion_error desc)
+		-> ConversionResult
+	{
+		return {ConversionStatus::warning, type, desc};
+	}
+
+	static auto failure(utils::conversion_error desc) -> ConversionResult
+	{
+		return {ConversionStatus::failure, nullptr, desc};
+	}
+
+	void set_success(llvm::Type* type);
+	void set_warning(llvm::Type* type, utils::conversion_error desc);
+	void set_failure(utils::conversion_error desc);
+};
+
 struct ConversionConfig
 {
 #define CVT_KIND(kind, msg) \
@@ -86,118 +120,75 @@ struct ConversionConfig
 
 
 /**
- * @brief 处理隐式转换的抽象基类
- */
-class IConversionHelper
-{
-public:
-	virtual ~IConversionHelper() = default;
-
-	enum Kind
-	{
-		llvm,
-		mock1,
-		mock2,
-	};
-
-	[[nodiscard]]
-	auto get_kind() const -> Kind 
-	{ return m_kind; }
-
-	/**
-	 * @brief 值变换
-	 * @details 发生在赋值语句的隐式转换 
-	 * @param left 等式左边值类型
-	 * @param right 等式右边单个类型，或完成通常算数转换的值
-	 * @retval 完成隐式转换的类型。 如果不合法，返回错误码
-	 */
-	[[nodiscard]]
-	virtual auto value_conversion(std::shared_ptr<IType> left,
-						  std::shared_ptr<IType> right)
-		-> std::expected<std::shared_ptr<IType>, std::error_code>;
-
-	/**
-	 * @brief 通常算数转换
-	 * @details 发生在等号右边，不同类型一起运算发生的隐式转换
-	 * @param left 根据优先级，符号左边类型
-	 * @param right 根据优先级，符号右边类型
-	 * @retval 发生算数转换后的类型
-	 */
-	[[nodiscard]]
-	virtual auto arithmetic_conversion(std::shared_ptr<IType> left,
-							   std::shared_ptr<IType> right)
-		-> std::expected<std::shared_ptr<IType>, std::error_code>;
-
-protected:
-	IConversionHelper(Kind kind, std::shared_ptr<ConversionConfig> config):
-		m_kind { kind },
-		m_config { config }
-	{}
-
-	/// @brief 整型提升
-	virtual
-	auto int_promotion(std::shared_ptr<IType> left, std::shared_ptr<IType> right) const
-		-> std::expected<std::shared_ptr<IType>, std::error_code> = 0;
-
-	/**
-	 * @brief 整型转换
-	 * @param left 等式左边等号，期望转换成为的类型
-	 * @param right 等式右边等号，被转换的类型
-	 */
-	virtual
-	auto int_cvt(std::shared_ptr<IType> left, std::shared_ptr<IType> right) const
-		-> std::expected<std::shared_ptr<IType>, std::error_code> = 0;
-	
-
-private:
-	Kind m_kind;
-
-protected:
-	std::shared_ptr<ConversionConfig> m_config;
-};
-
-
-/**
- * @brief 处理隐式转换
+ * @brief 处理隐式转换的类
  * @note 依据 https://zh.cppreference.com/w/c/language/conversion \
- * 		 通过参数的特定位置隐式标识 \
- * 		 c语言没有引用，返回值一律视为右值
+ *       通过参数的特定位置隐式标识 \
+ *       C语言没有引用，返回值一律视为右值
  */
-class LLVMConversionHelper: public IConversionHelper
-{
+class ConversionHelper {
 public:
-	LLVMConversionHelper(Kind kind, std::shared_ptr<ConversionConfig> config,
-			llvm::LLVMContext& context):
-		IConversionHelper { kind, config },
+    /**
+     * @brief 构造函数
+     * @param config 配置对象
+     * @param context LLVM 上下文
+     */
+    ConversionHelper(std::shared_ptr<ConversionConfig> config,
+                     llvm::LLVMContext& context):
+		m_config { config },
 		m_context { context }
 	{}
 
-	[[nodiscard]]
-	static auto classof(const IConversionHelper* helper) -> bool
-	{
-		return helper->get_kind() == Kind::llvm;
-	}
+	virtual ~ConversionHelper() = default;
+
+    /**
+     * @brief 值变换
+     * @details 处理赋值语句中的隐式转换
+     * @param left 等式左边的值类型
+     * @param right 等式右边的值类型，或完成算术转换后的类型
+     * @return  转换后的类型或错误码
+     */
+    [[nodiscard]]
+    auto value_conversion(llvm::Type* left, llvm::Type* right)
+        -> ConversionResult;
+
+    /**
+     * @brief 通常算术转换
+     * @details 处理等号右边不同类型运算时的隐式转换
+     * @param left 根据优先级，运算符左边的类型
+     * @param right 根据优先级，运算符右边的类型
+     * @return 转换后的类型或错误码
+     */
+    [[nodiscard]]
+    auto arithmetic_conversion(llvm::Type* left, llvm::Type* right)
+        -> ConversionResult;
+
+protected:
+    /**
+     * @brief 算数表达式中使用的整型提升, 寻找两个类型之间的较大者返回
+     * @param left 左操作数类型
+     * @param right 右操作数类型
+     * @return 提升后的类型，或错误码
+     */
+    auto arithmetic_int_promotion(llvm::Type* left, llvm::Type* right) const
+        -> ConversionResult;
+
+	/****************************************************
+	 *  	值变换
+	 ****************************************************/
+protected:
+    /**
+     * @brief 赋值语句中使用的整型转换(包括窄化,提升,有符号到无符号等)，
+     * @param left 期望转换成的目标类型
+     * @param right 被转换的类型
+     * @return 转换后的类型，或错误码
+     */
+    auto value_int_conversions(llvm::IntegerType* left, llvm::IntegerType* right) const
+        -> ConversionResult;
 
 private:
-	
-	///**
-	// * @brief 数组到指针转换
-	// * @note incomplete
-	// */
-	//auto arr2ptr(llvm::Type* type) const
-	//	-> llvm::Type*;
-
-	auto int_promotion(std::shared_ptr<IType> left, std::shared_ptr<IType> right) const
-		-> std::expected<std::shared_ptr<IType>, std::error_code>  override;
-
-	auto int_cvt(std::shared_ptr<IType> left, std::shared_ptr<IType> right) const
-		-> std::expected<std::shared_ptr<IType>, std::error_code>  override;
-
-private:
-	llvm::LLVMContext& m_context;
-
+    std::shared_ptr<ConversionConfig> m_config; // 配置对象
+    llvm::LLVMContext& m_context;               // LLVM 上下文
 };
-
 
 }	//toycc
 

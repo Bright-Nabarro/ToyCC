@@ -19,8 +19,10 @@ namespace toycc
 class CodeGenVisitor: public ASTVisitor
 {
 public:
-	CodeGenVisitor(llvm::LLVMContext& context, llvm::SourceMgr& src_mgr,
-				   llvm::TargetMachine* tm, std::shared_ptr<spdlog::async_logger> logger);
+	CodeGenVisitor(llvm::LLVMContext& context,
+				   std::shared_ptr<ConversionHelper> cvt_helper,
+				   llvm::SourceMgr& src_mgr, llvm::TargetMachine* tm,
+				   std::shared_ptr<spdlog::async_logger> logger);
 	/// @note 只支持从根节点翻译
 	[[nodiscard]]
 	auto visit(BaseAST* ast) -> std::expected<void, std::string> override;
@@ -44,7 +46,7 @@ private:
 	auto handle(const Block& node, llvm::Function* func,
 				std::string_view block_name) -> llvm::BasicBlock*;
 
-	void handle(const BlockItemList& node, LocalSymbolTable& root_table);
+	void handle(const BlockItemList& node, LocalSymbolTable& table);
 	void handle(const BlockItem& node, LocalSymbolTable& table);
 	
 	auto handle(const Param& node) -> llvm::Type*;
@@ -83,16 +85,15 @@ private:
 	/// @brief 二元运算符通用处理函数
 	auto binary_operate(llvm::Value* left, const Operator& op,
 						llvm::Value* right) -> llvm::Value*;
-private:
-	[[nodiscard]] static
-	auto get_llvm_type(std::shared_ptr<IType> type) -> llvm::Type*
-	{ return llvm::cast<LLVMType>(type.get())->get_llvm_type(); }
+
+	auto report_conversion_result(const ConversionResult& result,
+								  const BaseAST& node) -> llvm::Type*;
 
 private:
 	std::unique_ptr<llvm::Module> m_module;
 	llvm::IRBuilder<> m_builder;
 	std::shared_ptr<TypeMgr> m_type_mgr;
-	std::shared_ptr<IConversionHelper> m_cvt_helper;
+	std::shared_ptr<ConversionHelper> m_cvt_helper;
 
 	llvm::SourceMgr& m_src_mgr;
 	llvm::TargetMachine* m_target_machine;

@@ -1,5 +1,7 @@
 # 需要添加的功能
 - [ ] 添加llvm-ir直接向控制台输出的方法
+- [ ] (较困难) `ConversionHelper`根据整型常量判断细致化转换是否合法
+- [ ] `ConversionHelper`添加`config`的配置功能
 
 # 目前待改正问题
 - [x] 语义分析(生成代码阶段)报错没有关联到源代码位置，需要在语法树中添加位置的记录信息
@@ -14,6 +16,7 @@
 - [ ] 模块改名 main->backend front->frontend semantix->langspec
 - [ ] ast没有logger, 需要重新设计包装
 - [ ] handle错误处理的调用栈的错误报告内容重复
+- [ ] `ConversionHelper`关于整型无法区分是否有符号
 
 # 重构需要注意的问题
 - [x] 在前端和管理工具统一日志输出逻辑，使用外部库spdlog

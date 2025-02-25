@@ -17,14 +17,15 @@ namespace toycc
 {
 
 CodeGenVisitor::CodeGenVisitor(llvm::LLVMContext& context,
+							   std::shared_ptr<ConversionHelper> cvt_helper,
 							   llvm::SourceMgr& src_mgr,
 							   llvm::TargetMachine* tm,
 							   std::shared_ptr<spdlog::async_logger> logger)
 	: m_module{std::make_unique<llvm::Module>("toycc.expr", context)},
 	  m_builder{m_module->getContext()},
 	  m_type_mgr{std::make_shared<TypeMgr>(m_module->getContext(), tm)},
-	  m_src_mgr{src_mgr}, m_target_machine{tm},
-	  m_logger {logger}
+	  m_cvt_helper { cvt_helper },
+	  m_src_mgr{src_mgr}, m_target_machine{tm}, m_logger{logger}
 {
 }
 
@@ -161,7 +162,7 @@ auto CodeGenVisitor::handle(const Block& node, llvm::Function* func,
 	auto basic_block =
 		llvm::BasicBlock::Create(m_module->getContext(), block_name.data(), func);
 
-	// 局部符号表的根部
+	// 局部符号表
 	LocalSymbolTable table;
 
 	m_builder.SetInsertPoint(basic_block);
@@ -171,12 +172,11 @@ auto CodeGenVisitor::handle(const Block& node, llvm::Function* func,
 	return basic_block;
 }
 
-void CodeGenVisitor::handle(const BlockItemList& node, LocalSymbolTable& root_table)
+void CodeGenVisitor::handle(const BlockItemList& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
 	for (const auto& block_item : node)
 	{
-		LocalSymbolTable table { root_table };
 		assert(block_item != nullptr);
 		handle(*block_item, table);
 	}
@@ -305,26 +305,25 @@ auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
 	llvm::Value* right_value = handle(node.get_const_init_val(), table);
 	
 	auto ret = m_cvt_helper->value_conversion(
-		std::make_shared<LLVMType>(type),
-		std::make_shared<LLVMType>(right_value->getType())
+		type, right_value->getType()
 	);
-
-	if (!ret)
-	{
-		m_logger->error("{}", ret.error().message());
+	
+	auto left_type = report_conversion_result(ret, node);
+	if (left_type == nullptr)
 		return nullptr;
-	}
-	llvm::Type* left_type = get_llvm_type(*ret);
+	
+	//// 创建一个新的局部变量，分配内存
+	//llvm::AllocaInst* alloca_inst =
+	//	new llvm::AllocaInst(type, 0, name_str, m_builder.GetInsertBlock());
 
-	// 创建一个新的局部变量，分配内存
-	llvm::AllocaInst* alloca_inst =
-		new llvm::AllocaInst(type, 0, name_str, m_builder.GetInsertBlock());
+	//// 创建一个赋值指令，将右侧值存储到分配的内存中
+	//m_builder.CreateStore(right_value, alloca_inst);
 
-	// 创建一个赋值指令，将右侧值存储到分配的内存中
-	m_builder.CreateStore(right_value, alloca_inst);
-
-	// 生成一个指向新分配内存的加载指令
-	llvm::Value* left_value = m_builder.CreateLoad(left_type, alloca_inst);
+	//// 生成一个指向新分配内存的加载指令
+	//llvm::Value* left_value = m_builder.CreateLoad(left_type, alloca_inst);
+	
+	llvm::Value* left_value = right_value;
+	left_value->mutateType(left_type);
 
 	if (!table.insert(name_str, left_value))
 	{
@@ -484,6 +483,24 @@ auto CodeGenVisitor::handle(const TBinaryExpr& node, LocalSymbolTable& table)
 	return result;
 }
 
+auto CodeGenVisitor::report_conversion_result(const ConversionResult& result,
+											  const BaseAST& node)
+	-> llvm::Type*
+{
+	switch(result.status)
+	{
+	case ConversionStatus::success:
+		return result.result_type;
+	case ConversionStatus::warning:
+		node.report(Location::dk_warning, result.ec.message());
+		return result.result_type;
+	case ConversionStatus::failure:
+		node.report(Location::dk_warning, result.ec.message());
+		return nullptr;
+	default:
+		assert(false);
+	}
+}
 
 auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 									llvm::Value* right) -> llvm::Value*

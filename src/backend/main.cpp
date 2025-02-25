@@ -12,6 +12,7 @@
 #include "codegen_visitor.hpp"
 #include "emit_target.hpp"
 #include "codegen_context.hpp"
+#include "conversion.hpp"
 
 
 //帮助codegen 生成target_options
@@ -134,10 +135,14 @@ auto backend_procedure(toycc::CodeGenContext& cgc, llvm::SourceMgr& src_mgr,
 					   auto logger, auto ast)
 	-> std::unique_ptr<llvm::Module>
 {
-	
+
+	std::shared_ptr<toycc::ConversionConfig> cvt_config = std::make_shared<toycc::ConversionConfig>();
+	auto llvm_cvt_helper = std::make_shared<toycc::ConversionHelper>(cvt_config, cgc.get_llvm_context());
+
 	// 语义分析，中间代码生成
-	toycc::CodeGenVisitor visitor{cgc.get_llvm_context(), src_mgr,
-								  cgc.get_target_machine(), logger};
+	toycc::CodeGenVisitor visitor{cgc.get_llvm_context(), llvm_cvt_helper,
+								  src_mgr, cgc.get_target_machine(), logger};
+
 	auto void_or_error = visitor.visit(ast.get());
 	if (!void_or_error)
 	{

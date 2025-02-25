@@ -2,6 +2,8 @@
 #include <cstddef>
 #include <llvm/IR/Type.h>
 
+// 抛弃
+
 namespace toycc
 {
 
