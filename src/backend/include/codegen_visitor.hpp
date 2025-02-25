@@ -73,6 +73,11 @@ private:
 	auto handle(const ConstExpr& node, LocalSymbolTable& table) -> llvm::Value*;
 	/// @return 如果无法查找到返回nullptr
 	auto handle(const LVal& node, LocalSymbolTable& table) -> llvm::Value*;
+	
+	void handle(const VarDecl& node, LocalSymbolTable& table);
+	void handle(const VarDef& node, LocalSymbolTable& table);
+	void handle(const VarDefList& node, LocalSymbolTable& table);
+	void handle(const InitVal& node, LocalSymbolTable& table);
 
 	/// @note 在上层会传入所有的BinaryExpr, 无需在实现文件中显式实例化声明
 	template <typename TBinaryExpr>

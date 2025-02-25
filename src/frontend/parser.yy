@@ -74,18 +74,22 @@ namespace toycc { class Driver; }
 %nterm <std::unique_ptr<toycc::Number>>			Number
 %nterm <std::unique_ptr<toycc::Ident>>			Ident
 %nterm <std::unique_ptr<toycc::LVal>>			LVal
-
+//语句
 %nterm <std::unique_ptr<toycc::Stmt>>			Stmt
 %nterm <std::unique_ptr<toycc::Decl>>			Decl
 %nterm <std::unique_ptr<toycc::Block>>			Block
 %nterm <std::unique_ptr<toycc::BlockItemList>>	BlockItemList
 %nterm <std::unique_ptr<toycc::BlockItem>>		BlockItem
-
+//变量声明，使用
 %nterm <std::unique_ptr<toycc::ConstDecl>>		ConstDecl
 %nterm <std::unique_ptr<toycc::ConstDef>> 		ConstDef
 %nterm <std::unique_ptr<toycc::ConstDefList>> 	ConstDefList
 %nterm <std::unique_ptr<toycc::ConstInitVal>>	ConstInitVal
 %nterm <std::unique_ptr<toycc::ConstExpr>>		ConstExpr
+%nterm <std::unique_ptr<toycc::VarDecl>>		VarDecl
+%nterm <std::unique_ptr<toycc::VarDef>>			VarDef
+%nterm <std::unique_ptr<toycc::VarDefList>>		VarDefList
+%nterm <std::unique_ptr<toycc::InitVal>>		InitVal
 //type
 %nterm <std::unique_ptr<toycc::ScalarType>>		ScalarType
 %nterm <std::unique_ptr<toycc::BuiltinType>>	BuiltinType
@@ -200,6 +204,9 @@ Decl
 	: ConstDecl {
 		assert_same_ptr(toycc::ConstDecl, $1);
 		$$ = std::make_unique<toycc::Decl>(CONSTRUCT_LOCATION(@$), std::move($1));
+	}
+	| VarDecl {
+		$$ = std::make_unique<toycc::Decl>(CONSTRUCT_LOCATION(@$), std::move($1));
 	};
 
 ConstDecl
@@ -239,6 +246,40 @@ ConstInitVal
 		$$ = std::make_unique<toycc::ConstInitVal>(CONSTRUCT_LOCATION(@$),
 			std::move($1));
 	}; 
+
+VarDecl 
+	: ScalarType VarDef VarDefList ";" {
+		$$ = std::make_unique<toycc::VarDecl>(CONSTRUCT_LOCATION(@$),
+			std::move($1), std::move($2), std::move($3)
+		);
+	};
+
+VarDef 	
+	: Ident {
+		$$ = std::make_unique<toycc::Ident>(CONSTRUCT_LOCATION(@$),
+			std::move($1)
+		);
+	}
+	| Ident "=" InitVal {
+		$$ = std::make_unique<toycc::Ident>(CONSTRUCT_LOCATION(@$),
+			std::move($1), std::move($2)
+		);
+	};
+
+VarDefList		
+	: /* empty */ {
+		$$ = std::make_unique<toycc::VarDefList>(CONSTRUCT_LOCATION(@$));
+	}
+	| VarDefList ',' VarDef {
+		$$ = std::make_unique<toycc::VarDefList>(CONSTRUCT_LOCATION(@$),
+			std::move($1), std::move($3));
+	};
+
+InitVal 		
+	: Expr {
+		$$ = std::make_unique<toycc::InitVal>(CONSTRUCT_LOCATION(@$),
+			std::move($1));
+	};
 
 ConstExpr
 	: Expr {
