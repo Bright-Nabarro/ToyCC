@@ -7,9 +7,9 @@ LocalSymbolTable::LocalSymbolTable(LocalSymbolTable* upper_table):
 	m_upper { upper_table }
 {}
 
-auto LocalSymbolTable::insert(llvm::Value* value) -> bool
+auto LocalSymbolTable::insert(std::string_view name, llvm::Value* value) -> bool
 {
-	auto [_, success] = m_table.emplace(value->getName(), value);
+	auto [_, success] = m_table.emplace(name, value);
 
 	return success;
 }

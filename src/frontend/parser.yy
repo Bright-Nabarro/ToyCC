@@ -44,7 +44,7 @@ namespace toycc { class Driver; }
 //关键字
 %token KW_RETURN
 %token KW_SINT KW_UINT KW_VOID 
-%token KW_CONST
+%token KW_CONST KW_EVAL
 // 字面量标识分隔符
 %token DELIM_LPAREN		"("
 %token DELIM_RPAREN		")"
@@ -203,7 +203,7 @@ Decl
 	};
 
 ConstDecl
-	: KW_CONST ScalarType ConstDef ConstDefList ";" {
+	: KW_EVAL ScalarType ConstDef ConstDefList ";" {
 	// 1 		2 			3 			4		 
 		assert_same_ptr(toycc::ScalarType, $2);
 		assert_same_ptr(toycc::ConstDef, $3);

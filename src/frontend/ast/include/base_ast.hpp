@@ -69,6 +69,8 @@ public:
 	
 	void report(Location::DiagKind kind, std::string_view msg) const;
 
+	//void report_location() const;
+
 private:
 	AstKind m_kind;
 	std::unique_ptr<Location> m_location;

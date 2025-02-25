@@ -53,24 +53,30 @@ private:
 	auto handle(const Ident& node) -> std::string_view;
 
 	void handle(const Decl& node, LocalSymbolTable& table);
-	auto handle(const ConstDecl& node) -> std::vector<llvm::Value*>; 
+	auto handle(const ConstDecl& node, LocalSymbolTable& table)
+		-> std::vector<llvm::Value*>; 
 
-	void handle(const Stmt& node);
-	auto handle(const Expr& expr) -> llvm::Value*;
-	auto handle(const PrimaryExpr& node) -> llvm::Value*;
-	auto handle(const UnaryExpr& node) -> llvm::Value*;
+	void handle(const Stmt& node, LocalSymbolTable& table);
+	auto handle(const Expr& expr, LocalSymbolTable& table) -> llvm::Value*;
+	auto handle(const PrimaryExpr& node, LocalSymbolTable& table)
+		-> llvm::Value*;
+	auto handle(const UnaryExpr& node, LocalSymbolTable& table) -> llvm::Value*;
 
-	auto handle(const ConstDef& node, llvm::Type* type) -> llvm::Value*;
-	auto handle(const ConstDefList& node, llvm::Type* type)
-		-> std::vector<llvm::Value*>;
-	auto handle(const ConstInitVal& node) -> llvm::Value*;
-	auto handle(const ConstExpr& node) -> llvm::Value*;
-	auto handle(const LVal& node) -> llvm::Value*;
+	auto handle(const ConstDef& node, llvm::Type* type, LocalSymbolTable& table)
+		-> llvm::Value*;
+	auto handle(const ConstDefList& node, llvm::Type* type,
+				LocalSymbolTable& table) -> std::vector<llvm::Value*>;
+	auto handle(const ConstInitVal& node, LocalSymbolTable& table)
+		-> llvm::Value*;
+	auto handle(const ConstExpr& node, LocalSymbolTable& table) -> llvm::Value*;
+	/// @return 如果无法查找到返回nullptr
+	auto handle(const LVal& node, LocalSymbolTable& table) -> llvm::Value*;
 
 	/// @note 在上层会传入所有的BinaryExpr, 无需在实现文件中显式实例化声明
-	template<typename TBinaryExpr>
-	requires std::derived_from<TBinaryExpr, BinaryExprBase>
-	auto handle(const TBinaryExpr& node) -> llvm::Value*;
+	template <typename TBinaryExpr>
+		requires std::derived_from<TBinaryExpr, BinaryExprBase>
+	auto handle(const TBinaryExpr& node, LocalSymbolTable& table)
+		-> llvm::Value*;
 
 	/// @brief 一元运算符处理
 	auto unary_operate(const UnaryOp& op, llvm::Value* operand) -> llvm::Value*;

@@ -193,60 +193,68 @@ void CodeGenVisitor::handle(const BlockItem& node, LocalSymbolTable& table)
 	D_END;
 }
 
-void CodeGenVisitor::handle(const Stmt& node)
+void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	auto value = handle(node.get_expr());
+	auto value = handle(node.get_expr(), table);
 	assert(value != nullptr);
 	
 	m_builder.CreateRet(value);
 	D_END;
 }
 
-auto CodeGenVisitor::handle(const Expr& node) -> llvm::Value*
+auto CodeGenVisitor::handle(const Expr& node, LocalSymbolTable& table)
+	-> llvm::Value*
 {
 	D_BEGIN;
-	auto ret = handle(node.get_low_expr());
+	auto ret = handle(node.get_low_expr(), table);
 	D_END;
 
 	return ret;
 }
 
-auto CodeGenVisitor::handle(const PrimaryExpr& node) -> llvm::Value*
+auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
+	-> llvm::Value*
 {
 	D_BEGIN;
 
 	llvm::Value* result = nullptr;
 	if (node.has_expr())
 	{
-		result = handle(node.get_expr());	
+		result = handle(node.get_expr(), table);	
 	}
 	else if (node.has_ident())
 	{
-		result = handle(node.get_lval());
+		result = handle(node.get_lval(), table);
 	}
 	else if (node.has_number())
 	{
 		result = handle(node.get_number());
+	}
+	
+	if (result == nullptr)
+	{
+		node.report(Location::dk_error, "Error Occurs in PrimaryExpr");
 	}
 
 	D_END;
 	return result;
 }
 
-auto CodeGenVisitor::handle(const UnaryExpr& node) -> llvm::Value*
+auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
+	-> llvm::Value*
 {
 	D_BEGIN;
 
 	llvm::Value* result = nullptr;
 	if (node.has_unary_expr())
 	{
-		result = handle(node.get_unary_expr());
+		result = handle(node.get_unary_expr(), table);
 		result = unary_operate(node.get_unary_op(), result);
 	}
 	else if (node.has_primary_expr())
 	{
-		result = handle(node.get_primary_expr());
+		result = handle(node.get_primary_expr(), table);
 	}
 	else
 	{
@@ -270,52 +278,68 @@ auto CodeGenVisitor::handle(const Number& node) -> llvm::Value*
 void CodeGenVisitor::handle(const Decl& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	handle(node.get_const_decl());
+	handle(node.get_const_decl(), table);
 	D_END;
 }
 
-auto CodeGenVisitor::handle(const ConstDecl& node)
+auto CodeGenVisitor::handle(const ConstDecl& node, LocalSymbolTable& table)
 	-> std::vector<llvm::Value*>
 {
 	D_BEGIN;
 	llvm::Type* type = handle(node.get_scalar_type());
-	auto first_value = handle(node.get_first_const_def(), type);
-	auto value_list = handle(node.get_const_def_list(), type);
+	auto first_value = handle(node.get_first_const_def(), type, table);
+	auto value_list = handle(node.get_const_def_list(), type, table);
 	value_list.insert(value_list.begin(), first_value);
 	D_END;
 
 	return value_list;
 }
 
-auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type)
-	-> llvm::Value*
+auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
+							LocalSymbolTable& table) -> llvm::Value*
 {
 	D_BEGIN;
 
-	auto name = handle(node.get_ident());
+	auto name_str = handle(node.get_ident());
 
-	llvm::Value* right_value = handle(node.get_const_int_val());
-	llvm::Value* left_value = nullptr;
+	llvm::Value* right_value = handle(node.get_const_init_val(), table);
+	
+	auto ret = m_cvt_helper->value_conversion(
+		std::make_shared<LLVMType>(type),
+		std::make_shared<LLVMType>(right_value->getType())
+	);
 
-	auto ret =
-		m_cvt_helper->value_conversion(std::make_shared<LLVMType>(type),
-									   std::make_shared<LLVMType>(right_value->getType()));
 	if (!ret)
 	{
 		m_logger->error("{}", ret.error().message());
 		return nullptr;
 	}
 	llvm::Type* left_type = get_llvm_type(*ret);
-	
-	left_value = right_value;
-	left_value->mutateType(left_type);
 
+	// 创建一个新的局部变量，分配内存
+	llvm::AllocaInst* alloca_inst =
+		new llvm::AllocaInst(type, 0, name_str, m_builder.GetInsertBlock());
+
+	// 创建一个赋值指令，将右侧值存储到分配的内存中
+	m_builder.CreateStore(right_value, alloca_inst);
+
+	// 生成一个指向新分配内存的加载指令
+	llvm::Value* left_value = m_builder.CreateLoad(left_type, alloca_inst);
+
+	if (!table.insert(name_str, left_value))
+	{
+		node.report(Location::dk_error,
+				std::format("Variable {} has been defined", name_str));
+		return nullptr;
+	}
+	
 	D_END;
 
 	return left_value;
 }
 
-auto CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type)
+auto CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type,
+							LocalSymbolTable& table)
 	-> std::vector<llvm::Value*>
 {
 	D_BEGIN;
@@ -324,7 +348,7 @@ auto CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type)
 
 	for (const auto& const_def_ptr : node )
 	{
-		result.push_back(handle(*const_def_ptr, type));	
+		result.push_back(handle(*const_def_ptr, type, table));	
 	}
 
 	D_END;
@@ -332,27 +356,42 @@ auto CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type)
 	return result;
 }
 
-auto CodeGenVisitor::handle(const ConstInitVal& node) -> llvm::Value*
+auto CodeGenVisitor::handle(const ConstInitVal& node, LocalSymbolTable& table)
+	-> llvm::Value*
 {
 	D_BEGIN;
+	auto ret = handle(node.get_const_expr(), table);
 	D_END;
+	return ret;
 }
 
-auto CodeGenVisitor::handle(const ConstExpr& node) -> llvm::Value*
+auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table) -> llvm::Value*
 {
 	D_BEGIN;
-	auto result = handle(node.get_expr());
+	auto result = handle(node.get_expr(), table);
 	D_END;
 
 	return result;
 }
 
-auto CodeGenVisitor::handle(const LVal& node) -> llvm::Value*
+auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
+	-> llvm::Value*
 {
 	D_BEGIN;
-	D_END;
-}
+	auto name = handle(node.get_id());
+	auto value = table.lookup(name);
+	if (value == std::nullopt)
+	{
+		node.report(Location::dk_error,
+					std::format("Variable {} not defined", name));
+		return nullptr;
+	}
+	assert(value != nullptr);
 
+	D_END;
+	
+	return *value;
+}
 
 auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 	-> llvm::Value*
@@ -415,9 +454,10 @@ auto CodeGenVisitor::handle(const Param& node) -> llvm::Type*
 	return type;
 }
 
-template<typename TBinaryExpr>
-requires std::derived_from<TBinaryExpr, BinaryExprBase>
-auto CodeGenVisitor::handle(const TBinaryExpr& node) -> llvm::Value*
+template <typename TBinaryExpr>
+	requires std::derived_from<TBinaryExpr, BinaryExprBase>
+auto CodeGenVisitor::handle(const TBinaryExpr& node, LocalSymbolTable& table)
+	-> llvm::Value*
 {
 	D_BEGIN;
 
@@ -425,13 +465,13 @@ auto CodeGenVisitor::handle(const TBinaryExpr& node) -> llvm::Value*
 
 	if (node.has_higher_expr())
 	{
-		result = handle(node.get_higher_expr());
+		result = handle(node.get_higher_expr(), table);
 	}
 	else if (node.has_combined_expr())
 	{
 		auto [self_expr_ref, op, higher_expr_ref ] = node.get_combined_expr();
-		auto left = handle(self_expr_ref.get());
-		auto right = handle(higher_expr_ref.get());
+		auto left = handle(self_expr_ref.get(), table);
+		auto right = handle(higher_expr_ref.get(), table);
 		
 		result = binary_operate(left, op, right);
 	}

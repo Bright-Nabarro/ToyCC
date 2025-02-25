@@ -31,7 +31,7 @@ auto ConstDef::get_ident() const -> const Ident&
 	return *m_ident;
 }
 
-auto ConstDef::get_const_int_val() const -> const ConstInitVal&
+auto ConstDef::get_const_init_val() const -> const ConstInitVal&
 {
 	return *m_const_init_val;
 }

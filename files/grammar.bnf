@@ -19,7 +19,7 @@ Param       ::= ScalarType Ident;
 ## ConstDefList有逗号分隔，无法将ConstDef省略
 ConstDecl 		::= "eval" ScalarType ConstDef ConstDefList ";";
 #定义
-	[未完成符号表] ConstDef		::= Ident "=" ConstInitVal; 	# 赋值的逻辑在其handler中完成
+ConstDef		::= Ident "=" ConstInitVal; 	# 赋值的逻辑在其handler中完成
 	[返回类型可能需要修改] ConstDefList 	::= /* empty */ | ConstDefList ',' ConstDef
 	[未开始] ConstInitVal 	::= ConstExpr;
 ConstExpr		::= Expr;
@@ -30,10 +30,10 @@ BlockItemList 	::= /* empty */ | BlockItem BlockItemList
 ## 每个BlockItem 就是分号分隔的语句
 BlockItem		::= Decl | Stmt;
 
-	[未开始] LVal			::= Ident;
+LVal			::= Ident;
 
 # 语句
-	[未处理多返回值的错误情况] Stmt        	::= "return" Expr ";";
+	[未处理多返回值的错误情况, 符号表查找逻辑代实现] Stmt        	::= "return" Expr ";";
 
 Expr        	::= LOrExpr;
 

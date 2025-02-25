@@ -33,7 +33,7 @@ public:
 	[[nodiscard]]
 	auto get_ident() const -> const Ident&;
 	[[nodiscard]]
-	auto get_const_int_val() const -> const ConstInitVal&;
+	auto get_const_init_val() const -> const ConstInitVal&;
 
 private:
 	std::unique_ptr<Ident> m_ident;

@@ -49,6 +49,7 @@ UnsignedInt		(unsigned\s+int)|(unsigned)
 "void"			LOC_UPDATE_RET_ACTION(loc, yy::parser::make_KW_VOID(loc));
 "return"		LOC_UPDATE_RET_ACTION(loc, yy::parser::make_KW_RETURN(loc)); 
 "const"			LOC_UPDATE_RET_ACTION(loc, yy::parser::make_KW_CONST(loc));
+"eval"			LOC_UPDATE_RET_ACTION(loc, yy::parser::make_KW_EVAL(loc));
 
 {Ident}			LOC_UPDATE_RET_ACTION(loc, yy::parser::make_IDENT(std::string{yytext}, loc));
 {Number}		LOC_UPDATE_RET_ACTION(loc, yy::parser::make_INT_LITERAL(std::atoi(yytext), loc));

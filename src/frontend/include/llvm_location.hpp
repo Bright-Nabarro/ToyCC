@@ -91,3 +91,4 @@ private:
 auto operator<< (std::ostream& o, const LLVMLocation& loc) -> std::ostream&;
 
 }	//namespace toycc
+
