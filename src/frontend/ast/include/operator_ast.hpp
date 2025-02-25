@@ -1,6 +1,7 @@
 #pragma once
 #include <cassert>
 #include <format>
+#include <spdlog/spdlog.h>
 #include "base_ast.hpp"
 
 namespace toycc
@@ -47,10 +48,12 @@ protected:
 #define OP_TYPE_CHECK(expr, param_type)                                        \
 	do                                                                         \
 	{                                                                          \
-		assert((expr) &&                                                       \
-			   std::format("Invalid OperationType for {} {}", get_kind_str(),  \
-						   static_cast<int>(param_type))                       \
-				   .c_str());                                                  \
+		if (expr)                                                              \
+		{                                                                      \
+			spdlog::error("Invalid OperationType for {} {}", get_kind_str(),   \
+						  static_cast<int>(param_type));                       \
+			exit(-1);                                                          \
+		}                                                                      \
 	} while (0)
 
 /**

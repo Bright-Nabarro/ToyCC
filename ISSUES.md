@@ -9,6 +9,7 @@
 - [ ] 尝试修改flex和bison的报错输出，用spdlog注入
 - [ ] 拆解, 重构CodeGenVisitor
 - [ ] 模块改名 main->backend front->frontend semantix->langspec
+- [ ] ast没有logger, 需要重新设计包装
 
 # 重构需要注意的问题
 - [ ] 在前端和管理工具统一日志输出逻辑，使用外部库spdlog

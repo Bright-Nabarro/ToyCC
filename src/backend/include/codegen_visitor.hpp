@@ -3,6 +3,7 @@
 #include "ast.hpp"
 #include "type_mgr.hpp"
 #include "conversion.hpp"
+#include "symbol_table.hpp"
 #include <memory>
 #include <expected>
 #include <llvm/IR/IRBuilder.h>
@@ -42,15 +43,16 @@ private:
 
 	auto handle(const Block& node, llvm::Function* func,
 				std::string_view block_name) -> llvm::BasicBlock*;
-	void handle(const BlockItemList& node);
-	void handle(const BlockItem& node);
+
+	void handle(const BlockItemList& node, LocalSymbolTable& root_table);
+	void handle(const BlockItem& node, LocalSymbolTable& table);
 	
 	auto handle(const Param& node) -> llvm::Type*;
 
 	auto handle(const Number& num) -> llvm::Value*;
 	auto handle(const Ident& node) -> std::string_view;
 
-	void handle(const Decl& node);
+	void handle(const Decl& node, LocalSymbolTable& table);
 	auto handle(const ConstDecl& node) -> std::vector<llvm::Value*>; 
 
 	void handle(const Stmt& node);
@@ -75,11 +77,6 @@ private:
 	/// @brief 二元运算符通用处理函数
 	auto binary_operate(llvm::Value* left, const Operator& op,
 						llvm::Value* right) -> llvm::Value*;
-	/*
-	 * =========================================
-	 * ======== Stmt 处理逻辑 end ==============
-	 * =========================================
-	 */
 private:
 	[[nodiscard]] static
 	auto get_llvm_type(std::shared_ptr<IType> type) -> llvm::Type*

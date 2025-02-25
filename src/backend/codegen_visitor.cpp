@@ -74,13 +74,10 @@ void CodeGenVisitor::handle(const FuncDef& node)
 
 	auto func_type = llvm::FunctionType::get(return_type, param_types, false);
 
-	//auto func =
-	//	llvm::Function::Create(func_type, llvm::GlobalValue::ExternalLinkage,
-	//						   func_name, m_module.get());
-
 	auto func =
 		llvm::Function::Create(func_type, llvm::GlobalValue::ExternalLinkage,
 							   func_name, m_module.get());
+
 	handle(node.get_block(), func, "entry");
 
 	D_END;
@@ -152,6 +149,7 @@ auto CodeGenVisitor::handle(const ParamList& node) -> std::vector<llvm::Type*>
 		type_list.push_back(handle(*param));
 	}
 	D_END;
+
 	return type_list;
 }
 
@@ -162,31 +160,36 @@ auto CodeGenVisitor::handle(const Block& node, llvm::Function* func,
 
 	auto basic_block =
 		llvm::BasicBlock::Create(m_module->getContext(), block_name.data(), func);
+
+	// 局部符号表的根部
+	LocalSymbolTable table;
+
 	m_builder.SetInsertPoint(basic_block);
+	handle(node.get_block_item_list(), table);
 
 	D_END;
 	return basic_block;
 }
 
-void CodeGenVisitor::handle(const BlockItemList& node)
+void CodeGenVisitor::handle(const BlockItemList& node, LocalSymbolTable& root_table)
 {
 	D_BEGIN;
 	for (const auto& block_item : node)
 	{
+		LocalSymbolTable table { root_table };
 		assert(block_item != nullptr);
-		handle(*block_item);
+		handle(*block_item, table);
 	}
 	D_END;
-
 }
 
-void CodeGenVisitor::handle(const BlockItem& node)
+void CodeGenVisitor::handle(const BlockItem& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
 	if (node.has_decl())
-		handle(node.get_decl());
+		handle(node.get_decl(), table);
 	else if (node.has_stmt())
-		handle(node.get_stmt());
+		handle(node.get_stmt(), table);
 	D_END;
 }
 
@@ -264,7 +267,7 @@ auto CodeGenVisitor::handle(const Number& node) -> llvm::Value*
 	return result;
 }
 
-void CodeGenVisitor::handle(const Decl& node)
+void CodeGenVisitor::handle(const Decl& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
 	handle(node.get_const_decl());
@@ -278,6 +281,7 @@ auto CodeGenVisitor::handle(const ConstDecl& node)
 	llvm::Type* type = handle(node.get_scalar_type());
 	auto first_value = handle(node.get_first_const_def(), type);
 	auto value_list = handle(node.get_const_def_list(), type);
+	value_list.insert(value_list.begin(), first_value);
 	D_END;
 
 	return value_list;
@@ -433,8 +437,7 @@ auto CodeGenVisitor::handle(const TBinaryExpr& node) -> llvm::Value*
 	}
 	else
 	{
-		m_logger->error("{}'s Variant has an unkown type", node.get_kind_str());
-		assert(false);
+		assert(false && "Variant has an unkown type");
 	}
 	D_END;
 
@@ -496,8 +499,7 @@ auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 		break;
 	default:
 		//在二元运算符中
-		m_logger->error("Unprocessed binary operate");
-		assert(false);
+		assert(false && "Unprocessed binary operate");
 	}
 
 	assert(result != nullptr);
