@@ -197,9 +197,15 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
 	auto value = handle(node.get_expr(), table);
-	assert(value != nullptr);
+
+	if (value == nullptr) //出错
+	{
+	}
+	else
+	{
+		m_builder.CreateRet(value);
+	}
 	
-	m_builder.CreateRet(value);
 	D_END;
 }
 
@@ -234,7 +240,7 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 	
 	if (result == nullptr)
 	{
-		node.report(Location::dk_error, "Error Occurs in PrimaryExpr");
+		report_in_ast(node, Location::dk_error, "Error Occurs in PrimaryExpr");
 	}
 
 	D_END;
@@ -322,7 +328,7 @@ void CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
 
 	if (!table.insert(name_str, left_value))
 	{
-		node.report(Location::dk_error,
+		report_in_ast(node, Location::dk_error,
 				std::format("Variable {} has been defined", name_str));
 		return;
 	}
@@ -367,7 +373,7 @@ auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
 	auto value = table.lookup(name);
 	if (value == std::nullopt)
 	{
-		node.report(Location::dk_error,
+		report_in_ast(node, Location::dk_error,
 					std::format("Variable {} not defined", name));
 		return nullptr;
 	}
@@ -478,10 +484,10 @@ auto CodeGenVisitor::report_conversion_result(const ConversionResult& result,
 	case ConversionStatus::success:
 		return result.result_type;
 	case ConversionStatus::warning:
-		node.report(Location::dk_warning, result.ec.message());
+		report_in_ast(node, Location::dk_warning, result.ec.message());
 		return result.result_type;
 	case ConversionStatus::failure:
-		node.report(Location::dk_warning, result.ec.message());
+		report_in_ast(node, Location::dk_warning, result.ec.message());
 		return nullptr;
 	default:
 		assert(false);
@@ -613,7 +619,7 @@ auto CodeGenVisitor::handle(const InitVal& node, LocalSymbolTable& table)
 void CodeGenVisitor::report_in_ast(const BaseAST& node, Location::DiagKind kind,
 								   std::string_view msg)
 {
-	node.report_in_visitor(kind, msg, m_src_mgr);
+	node.report(kind, msg, &m_src_mgr);
 }
 
 }	//namespace toycc

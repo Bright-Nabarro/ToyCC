@@ -88,5 +88,4 @@ private:
 		return ast->get_kind() == ast_enum;                                    \
 	}
 
-
 }	//namespace toycc
