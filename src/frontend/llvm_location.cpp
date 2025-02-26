@@ -80,6 +80,14 @@ auto LLVMLocation::cvt_kind_to_llvm(Location::DiagKind kind)
 	}
 }
 
+void LLVMLocation::report_in_srcmgr(Location::DiagKind kind, std::string_view msg,
+						   llvm::SourceMgr* src_mgr) const
+{
+	m_src_mgr = src_mgr;
+	report(kind, msg);
+}
+
+
 auto operator<< (std::ostream& os, const LLVMLocation& loc) -> std::ostream&
 {
 	std::string output_buffer;

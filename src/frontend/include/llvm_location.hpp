@@ -56,6 +56,9 @@ public:
 	 */
 	void report(Location::DiagKind kind, std::string_view msg) const override ;
 
+	void report_in_srcmgr(Location::DiagKind kind, std::string_view msg,
+						   llvm::SourceMgr* src_mgr) const;
+
 	/// @brief set begin to end
 	void step();
 
@@ -63,7 +66,7 @@ public:
 	void update(std::size_t len);
 
 	/// @note 需要在report前调用
-	void set_src_mgr(const llvm::SourceMgr* src_mgr) const;
+	void set_src_mgr(const llvm::SourceMgr* src_mgr) override const;
 
 	/// @note 与set_src_mgr类似
 	void set_logger(std::shared_ptr<spdlog::async_logger> logger);

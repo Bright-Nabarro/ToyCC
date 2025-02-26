@@ -256,13 +256,13 @@ VarDecl
 
 VarDef 	
 	: Ident {
-		$$ = std::make_unique<toycc::Ident>(CONSTRUCT_LOCATION(@$),
+		$$ = std::make_unique<toycc::VarDef>(CONSTRUCT_LOCATION(@$),
 			std::move($1)
 		);
 	}
 	| Ident "=" InitVal {
-		$$ = std::make_unique<toycc::Ident>(CONSTRUCT_LOCATION(@$),
-			std::move($1), std::move($2)
+		$$ = std::make_unique<toycc::VarDef>(CONSTRUCT_LOCATION(@$),
+			std::move($1), std::move($3)
 		);
 	};
 
@@ -270,7 +270,7 @@ VarDefList
 	: /* empty */ {
 		$$ = std::make_unique<toycc::VarDefList>(CONSTRUCT_LOCATION(@$));
 	}
-	| VarDefList ',' VarDef {
+	| VarDefList "," VarDef {
 		$$ = std::make_unique<toycc::VarDefList>(CONSTRUCT_LOCATION(@$),
 			std::move($1), std::move($3));
 	};

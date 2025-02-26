@@ -15,7 +15,7 @@ Param       ::= ScalarType Ident;
 
 
 # 声明
-	[返回类型可能需要修改] Decl			::=  ConstDecl | VarDecl; 
+	[新增文法逻辑, 返回类型可能需要修改] Decl			::=  ConstDecl | VarDecl; 
 ## ConstDefList有逗号分隔，无法将ConstDef省略
 ConstDecl 		::= "eval" ScalarType ConstDef ConstDefList ";";
 #定义

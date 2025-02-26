@@ -278,25 +278,30 @@ auto CodeGenVisitor::handle(const Number& node) -> llvm::Value*
 void CodeGenVisitor::handle(const Decl& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	handle(node.get_const_decl(), table);
+
+	if (node.has_const_decl())
+		handle(node.get_const_decl(), table);
+	else if (node.has_var_decl())
+		handle(node.get_var_decl(), table);
+	else
+		assert(false && "Unkown type in Decl");
+
 	D_END;
 }
 
-auto CodeGenVisitor::handle(const ConstDecl& node, LocalSymbolTable& table)
-	-> std::vector<llvm::Value*>
+void CodeGenVisitor::handle(const ConstDecl& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	llvm::Type* type = handle(node.get_scalar_type());
-	auto first_value = handle(node.get_first_const_def(), type, table);
-	auto value_list = handle(node.get_const_def_list(), type, table);
-	value_list.insert(value_list.begin(), first_value);
-	D_END;
 
-	return value_list;
+	llvm::Type* type = handle(node.get_scalar_type());
+	handle(node.get_first_const_def(), type, table);
+	handle(node.get_const_def_list(), type, table);
+
+	D_END;
 }
 
-auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
-							LocalSymbolTable& table) -> llvm::Value*
+void CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
+							LocalSymbolTable& table)
 {
 	D_BEGIN;
 
@@ -310,17 +315,7 @@ auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
 	
 	auto left_type = report_conversion_result(ret, node);
 	if (left_type == nullptr)
-		return nullptr;
-	
-	//// 创建一个新的局部变量，分配内存
-	//llvm::AllocaInst* alloca_inst =
-	//	new llvm::AllocaInst(type, 0, name_str, m_builder.GetInsertBlock());
-
-	//// 创建一个赋值指令，将右侧值存储到分配的内存中
-	//m_builder.CreateStore(right_value, alloca_inst);
-
-	//// 生成一个指向新分配内存的加载指令
-	//llvm::Value* left_value = m_builder.CreateLoad(left_type, alloca_inst);
+		return;
 	
 	llvm::Value* left_value = right_value;
 	left_value->mutateType(left_type);
@@ -329,30 +324,21 @@ auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
 	{
 		node.report(Location::dk_error,
 				std::format("Variable {} has been defined", name_str));
-		return nullptr;
+		return;
 	}
 	
 	D_END;
-
-	return left_value;
 }
 
-auto CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type,
+void CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type,
 							LocalSymbolTable& table)
-	-> std::vector<llvm::Value*>
 {
 	D_BEGIN;
-	std::vector<llvm::Value*> result;
-	result.resize(node.size());
-
 	for (const auto& const_def_ptr : node )
 	{
-		result.push_back(handle(*const_def_ptr, type, table));	
+		handle(*const_def_ptr, type, table);
 	}
-
 	D_END;
-
-	return result;
 }
 
 auto CodeGenVisitor::handle(const ConstInitVal& node, LocalSymbolTable& table)
@@ -567,6 +553,68 @@ auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 	return result;
 }
 
+void CodeGenVisitor::handle(const VarDecl& node, LocalSymbolTable& table)
+{
+	D_BEGIN;
+
+	auto* type = handle(node.get_scalar_type());
+	handle(node.get_var_def(), type, table);
+	handle(node.get_var_def_list(), type, table);
+
+	D_END;
+}
+
+void CodeGenVisitor::handle(const VarDef& node, llvm::Type* type,
+							LocalSymbolTable& table)
+{
+	D_BEGIN;
+
+	auto name_str = handle(node.get_ident());
+	auto* right_value = handle(node.get_init_val(), table);
+
+	auto cvt_result = m_cvt_helper->value_conversion(type, right_value->getType());
+	
+	auto left_type = report_conversion_result(cvt_result, node);
+	if (left_type == nullptr)
+		return;
+	
+	// 创建一个新的局部变量，分配内存
+	llvm::AllocaInst* alloca_inst =
+		new llvm::AllocaInst(type, 0, name_str, m_builder.GetInsertBlock());
+
+	// 创建一个赋值指令，将右侧值存储到分配的内存中
+	m_builder.CreateStore(right_value, alloca_inst);
+
+	D_END;
+}
+
+void CodeGenVisitor::handle(const VarDefList& node, llvm::Type* type,
+							LocalSymbolTable& table)
+{
+	D_BEGIN;
+	for (const auto& ptr : node)
+	{
+		handle(*ptr, type, table);
+	}
+
+	D_END;
+}
+
+auto CodeGenVisitor::handle(const InitVal& node, LocalSymbolTable& table)
+	-> llvm::Value*
+{
+	D_BEGIN;
+	auto result = handle(node.get_expr(), table);
+	D_END;
+
+	return result;
+}
+
+void CodeGenVisitor::report_in_ast(const BaseAST& node, Location::DiagKind kind,
+								   std::string_view msg)
+{
+	node.report_in_visitor(kind, msg, m_src_mgr);
+}
 
 }	//namespace toycc
 

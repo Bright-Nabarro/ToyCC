@@ -55,8 +55,7 @@ private:
 	auto handle(const Ident& node) -> std::string_view;
 
 	void handle(const Decl& node, LocalSymbolTable& table);
-	auto handle(const ConstDecl& node, LocalSymbolTable& table)
-		-> std::vector<llvm::Value*>; 
+	void handle(const ConstDecl& node, LocalSymbolTable& table);
 
 	void handle(const Stmt& node, LocalSymbolTable& table);
 	auto handle(const Expr& expr, LocalSymbolTable& table) -> llvm::Value*;
@@ -64,10 +63,8 @@ private:
 		-> llvm::Value*;
 	auto handle(const UnaryExpr& node, LocalSymbolTable& table) -> llvm::Value*;
 
-	auto handle(const ConstDef& node, llvm::Type* type, LocalSymbolTable& table)
-		-> llvm::Value*;
-	auto handle(const ConstDefList& node, llvm::Type* type,
-				LocalSymbolTable& table) -> std::vector<llvm::Value*>;
+	void handle(const ConstDef& node, llvm::Type* type, LocalSymbolTable& table);
+	void handle(const ConstDefList& node, llvm::Type* type, LocalSymbolTable& table);
 	auto handle(const ConstInitVal& node, LocalSymbolTable& table)
 		-> llvm::Value*;
 	auto handle(const ConstExpr& node, LocalSymbolTable& table) -> llvm::Value*;
@@ -75,9 +72,9 @@ private:
 	auto handle(const LVal& node, LocalSymbolTable& table) -> llvm::Value*;
 	
 	void handle(const VarDecl& node, LocalSymbolTable& table);
-	void handle(const VarDef& node, LocalSymbolTable& table);
-	void handle(const VarDefList& node, LocalSymbolTable& table);
-	void handle(const InitVal& node, LocalSymbolTable& table);
+	void handle(const VarDef& node, llvm::Type* type, LocalSymbolTable& table);
+	void handle(const VarDefList& node, llvm::Type* type, LocalSymbolTable& table);
+	auto handle(const InitVal& node, LocalSymbolTable& table) -> llvm::Value*;
 
 	/// @note 在上层会传入所有的BinaryExpr, 无需在实现文件中显式实例化声明
 	template <typename TBinaryExpr>
@@ -93,6 +90,8 @@ private:
 
 	auto report_conversion_result(const ConversionResult& result,
 								  const BaseAST& node) -> llvm::Type*;
+	void report_in_ast(const BaseAST& node, Location::DiagKind kind,
+					   std::string_view msg);
 
 private:
 	std::unique_ptr<llvm::Module> m_module;

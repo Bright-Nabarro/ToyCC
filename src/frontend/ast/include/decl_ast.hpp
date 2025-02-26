@@ -140,6 +140,18 @@ public:
 			   std::unique_ptr<VarDefList> var_def_list,
 			   std::unique_ptr<VarDef> var_def);
 
+	[[nodiscard]]
+	auto begin() const -> Vector::const_iterator
+	{ return m_var_defs.cbegin(); }
+
+	[[nodiscard]]
+	auto end() const -> Vector::const_iterator
+	{ return m_var_defs.cend(); }
+
+	[[nodiscard]] constexpr
+	auto size() const -> std::size_t
+	{ return m_var_defs.size(); }
+
 	auto get_var_defs() -> const Vector&;
 private:
 	Vector m_var_defs;
