@@ -73,7 +73,7 @@ private:
 	 * @return 如果无法查找到返回nullptr
 	 */
 	auto handle(const LVal& node, LocalSymbolTable& table)
-		-> llvm::Value*;
+		-> std::shared_ptr<SymbolEntry>;
 	
 	void handle(const VarDecl& node, LocalSymbolTable& table);
 	void handle(const VarDef& node, llvm::Type* type, LocalSymbolTable& table);

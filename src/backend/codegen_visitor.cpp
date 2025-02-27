@@ -196,14 +196,60 @@ void CodeGenVisitor::handle(const BlockItem& node, LocalSymbolTable& table)
 void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	auto value = handle(node.get_expr(), table);
+	switch (node.get_type())
+	{
+	case Stmt::assign:
+	{
+		auto left_entry = handle(node.get_lval(), table);
+		llvm::Value* right_value = handle(node.get_expr(), table);
 
-	if (value == nullptr) //出错
-	{
+		if (left_entry->is_eval) [[unlikely]]
+		{
+			report_in_ast(node, Location::DiagKind::dk_error,
+						  "An eval value cannot be assigned");
+			break;
+		}
+
+		if (left_entry == nullptr) [[unlikely]]
+		{
+			m_logger->info("User Error occured in Stmt::assign left value");
+			break;
+		}
+		if (right_value == nullptr) [[unlikely]]
+		{
+			m_logger->info("User Error occured in Stmt::assign right value");
+			break;
+		}
+
+		m_builder.CreateStore(right_value, left_entry->alloca);
+		
+		break;
 	}
-	else
+	case Stmt::expression:
 	{
-		m_builder.CreateRet(value);
+		if (!node.has_expr())
+		{
+			m_logger->debug("Empty Stmt expression");
+			break;
+		}
+
+		auto value = handle(node.get_expr(), table);
+		if (value == nullptr)
+		{
+			m_logger->info("User Error occured in Stmt::expression");
+		}
+		break;
+	}
+	case Stmt::block:
+	{
+		break;
+	}
+	case Stmt::func_return:
+	{
+		break;
+	}
+	default:
+		assert(false && "Unkown StmtType");
 	}
 	
 	D_END;
@@ -231,7 +277,10 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 	}
 	else if (node.has_ident())
 	{
-		result = handle(node.get_lval(), table);
+		auto entry = handle(node.get_lval(), table);
+		result = entry->is_eval ?
+			entry->value :
+			m_builder.CreateLoad(entry->alloca->getType(), entry->alloca);
 	}
 	else if (node.has_number())
 	{
@@ -367,7 +416,7 @@ auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table)
 }
 
 auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
-	-> llvm::Value*
+	-> std::shared_ptr<SymbolEntry>
 {
 	D_BEGIN;
 	auto name = handle(node.get_id());
@@ -379,14 +428,9 @@ auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
 		return nullptr;
 	}
 
-	llvm::Value* result =
-		entry->is_eval
-			? entry->value
-			: m_builder.CreateLoad(entry->alloca->getType(), entry->alloca);
-
 	D_END;
 	
-	return result;
+	return entry;
 }
 
 auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)

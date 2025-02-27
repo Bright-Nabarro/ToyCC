@@ -8,6 +8,7 @@
 namespace toycc
 {
 
+class Block;
 /**
  * Stmt ::= "return" Expr ";";
  */
@@ -15,13 +16,47 @@ class Stmt: public BaseAST
 {
 public:
 	TOYCC_AST_FILL_CLASSOF(ast_stmt);
-	Stmt(std::unique_ptr<Location> location, std::unique_ptr<Expr> expr);
-	
+	enum StmtType
+	{
+		assign,
+		expression,
+		block,
+		func_return,
+	};
+	Stmt(std::unique_ptr<Location> location, StmtType type);
+
+	Stmt(std::unique_ptr<Location> location, StmtType type,
+		 std::unique_ptr<Expr> expr);
+
+	Stmt(std::unique_ptr<Location> location, StmtType type,
+		 std::unique_ptr<LVal> lval, std::unique_ptr<Expr> expr);
+
+	Stmt(std::unique_ptr<Location> location, StmtType type,
+		std::unique_ptr<Block> block);
+
+	~Stmt();
+
+	[[nodiscard]]
+	auto get_type() const -> StmtType
+	{ return m_type; }
+
+	[[nodiscard]]
+	auto has_expr() const -> bool;
+
+	[[nodiscard]]
+	auto get_lval() const -> const LVal&;
+
 	[[nodiscard]]
 	auto get_expr() const -> const Expr&;
 
+	[[nodiscard]]
+	auto get_block() const -> const Block&;
+
 private:
+	StmtType m_type;
+	std::unique_ptr<LVal> m_lval;
 	std::unique_ptr<Expr> m_expr;
+	std::unique_ptr<Block> m_block;
 };
 
 

@@ -324,10 +324,27 @@ LVal
 	};
 
 Stmt
-	: KW_RETURN Expr ";" {
+	: LVal "=" Expr DELIM_SIMICOLON {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			toycc::Stmt::assign, std::move($1), std::move($3));
+	}
+	| Expr DELIM_SIMICOLON {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			toycc::Stmt::expression, std::move($1));
+	}
+	| DELIM_SIMICOLON {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			toycc::Stmt::expression);
+	}
+	| KW_RETURN Expr DELIM_SIMICOLON {
 		assert_same_ptr(toycc::Expr, $2);
-		auto stmt_ptr = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$), std::move($2));
+		auto stmt_ptr = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			toycc::Stmt::func_return, std::move($2));
 		$$ = std::move(stmt_ptr);
+	}
+	| KW_RETURN DELIM_SIMICOLON {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			toycc::Stmt::func_return);
 	};
 
 Expr
