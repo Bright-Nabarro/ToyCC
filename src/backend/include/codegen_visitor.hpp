@@ -43,8 +43,10 @@ private:
 
 	auto handle(const ParamList& node) -> std::vector<llvm::Type*>;
 
-	auto handle(const Block& node, llvm::Function* func,
+	auto create_basic_block(const Block& node, llvm::Function* func,
 				std::string_view block_name) -> llvm::BasicBlock*;
+	// 不创建新块的情况
+	void handle(const Block& node, LocalSymbolTable& upper_table);
 
 	void handle(const BlockItemList& node, LocalSymbolTable& table);
 	void handle(const BlockItem& node, LocalSymbolTable& table);
