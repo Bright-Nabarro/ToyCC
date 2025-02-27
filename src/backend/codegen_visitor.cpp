@@ -196,25 +196,21 @@ void CodeGenVisitor::handle(const BlockItem& node, LocalSymbolTable& table)
 void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	auto entry = handle(node.get_expr(), table);
+	auto value = handle(node.get_expr(), table);
 
-	if (entry == nullptr) //出错
+	if (value == nullptr) //出错
 	{
-	}
-	else if (entry->is_eval)
-	{
-		m_builder.CreateRet(entry->value);
 	}
 	else
 	{
-		assert(false);
+		m_builder.CreateRet(value);
 	}
 	
 	D_END;
 }
 
 auto CodeGenVisitor::handle(const Expr& node, LocalSymbolTable& table)
-	-> std::shared_ptr<SymbolEntry>
+	-> llvm::Value*
 {
 	D_BEGIN;
 	auto ret = handle(node.get_low_expr(), table);
@@ -224,11 +220,11 @@ auto CodeGenVisitor::handle(const Expr& node, LocalSymbolTable& table)
 }
 
 auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
-	-> std::shared_ptr<SymbolEntry>
+	-> llvm::Value*
 {
 	D_BEGIN;
 
-	std::shared_ptr<SymbolEntry> result = nullptr;
+	llvm::Value* result = nullptr;
 	if (node.has_expr())
 	{
 		result = handle(node.get_expr(), table);	
@@ -252,11 +248,11 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 }
 
 auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
-	-> std::shared_ptr<SymbolEntry>
+	-> llvm::Value*
 {
 	D_BEGIN;
 
-	std::shared_ptr<SymbolEntry> result = nullptr;
+	llvm::Value* result = nullptr;
 	if (node.has_unary_expr())
 	{
 		result = handle(node.get_unary_expr(), table);
@@ -275,15 +271,13 @@ auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 	return result;
 }
 
-auto CodeGenVisitor::handle(const Number& node) -> std::shared_ptr<SymbolEntry>
+auto CodeGenVisitor::handle(const Number& node) -> llvm::Value*
 {
 	D_BEGIN;
 
-	llvm::Value* value = llvm::ConstantInt::get(m_type_mgr->get_signed_int(),
+	llvm::Value* result = llvm::ConstantInt::get(m_type_mgr->get_signed_int(),
 											 node.get_int_literal());
-	auto result = std::make_shared<SymbolEntry>(value);
 	D_END;
-
 	return result;
 }
 
@@ -367,81 +361,76 @@ auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
 	auto result = handle(node.get_expr(), table);
-	assert(result->is_eval);
 	D_END;
-	
-	return result->value;
+
+	return result;
 }
 
 auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
-	-> std::shared_ptr<SymbolEntry>
+	-> llvm::Value*
 {
 	D_BEGIN;
 	auto name = handle(node.get_id());
 	auto value = table.lookup(name);
-	if (value == nullptr)
+	if (value == std::nullopt)
 	{
 		report_in_ast(node, Location::dk_error,
 					std::format("Variable {} not defined", name));
 		return nullptr;
 	}
+	assert(value != nullptr);
 
 	D_END;
 	
-	return value;
+	return *value;
 }
 
-auto CodeGenVisitor::unary_operate(const UnaryOp& op, std::shared_ptr<SymbolEntry> operand)
-	-> std::shared_ptr<SymbolEntry>
+auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
+	-> llvm::Value*
 {
 	m_logger->debug("UnaryOp[{}] Begin", op.get_type_str());
-	std::shared_ptr<SymbolEntry> result = nullptr;
+	llvm::Value* result = nullptr;
 
-	if (operand->is_eval)
+	if (!type->isIntegerTy() && !type->isFloatingPointTy())
 	{
-		llvm::Value* value = operand->value;
-		llvm::Type* type = value->getType();
-		if (!type->isIntegerTy() && !type->isFloatingPointTy())
-		{
-			m_logger->error("Expected type in UnaryOp");
-			return nullptr;
-		}
+		m_logger->error("Expected type in UnaryOp");
+		return nullptr;
+	}
 
-		switch (op.get_type())
+	switch (op.get_type())
+	{
+	case UnaryOp::op_add:
+		result = operand;
+		break;
+	case UnaryOp::op_sub:
+		if (type->isIntegerTy())
+			result = m_builder.CreateNeg(operand);
+		else 
+			result = m_builder.CreateFNeg(operand);
+		break;
+	/// c语言not操作将操作数转换为int类型
+	case UnaryOp::op_not:
+	{
+		llvm::Value* zero = llvm::ConstantInt::get(type, 0);
+		llvm::Value* is_nonzero = nullptr;
+		if (type->isIntegerTy())
 		{
-		case UnaryOp::op_add:
-			result = operand;
-			break;
-		case UnaryOp::op_sub:
-			if (type->isIntegerTy())
-				result->value = m_builder.CreateNeg(value);
-			else
-				result->value = m_builder.CreateFNeg(value);
-			break;
-		/// c语言not操作将操作数转换为int类型
-		case UnaryOp::op_not:
+			is_nonzero = m_builder.CreateICmpNE(operand, zero);
+		}
+		else
 		{
-			llvm::Value* zero = llvm::ConstantInt::get(type, 0);
-			llvm::Value* is_nonzero = nullptr;
-			if (type->isIntegerTy())
-			{
-				is_nonzero = m_builder.CreateICmpNE(value, zero);
-			}
-			else
-			{
-				is_nonzero = m_builder.CreateFCmpUNE(value, zero);
-			}
-			llvm::Value* int_value =
-				m_builder.CreateZExt(is_nonzero, m_type_mgr->get_signed_int());
+			is_nonzero = m_builder.CreateFCmpUNE(operand, zero);
+		}
+		llvm::Value* int_value =
+			m_builder.CreateZExt(is_nonzero, m_type_mgr->get_signed_int());
 
-			result->value = m_builder.CreateNot(int_value);
-			break;
-		}
-		default:
-			m_logger->error("Unkown operation: {}, category: {}",
-							static_cast<int>(op.get_type()), op.get_type_str());
-			result = nullptr;
-		}
+		result = m_builder.CreateNot(int_value);
+		break;
+	}
+	default:
+		m_logger->error("Unkown operation: {}, category: {}",
+						static_cast<int>(op.get_type()), op.get_type_str());
+		result = nullptr;
 	}
 
 	m_logger->debug("UnaryOp[{}] Begin", op.get_type_str());
@@ -461,11 +450,11 @@ auto CodeGenVisitor::handle(const Param& node) -> llvm::Type*
 template <typename TBinaryExpr>
 	requires std::derived_from<TBinaryExpr, BinaryExprBase>
 auto CodeGenVisitor::handle(const TBinaryExpr& node, LocalSymbolTable& table)
-	-> std::shared_ptr<SymbolEntry>
+	-> llvm::Value*
 {
 	D_BEGIN;
 
-	std::shared_ptr<SymbolEntry> result = nullptr;
+	llvm::Value* result = nullptr;
 
 	if (node.has_higher_expr())
 	{
@@ -507,61 +496,57 @@ auto CodeGenVisitor::report_conversion_result(const ConversionResult& result,
 	}
 }
 
-auto CodeGenVisitor::binary_operate(std::shared_ptr<SymbolEntry> left,
-									const Operator& op,
-									std::shared_ptr<SymbolEntry> right)
-	-> std::shared_ptr<SymbolEntry>
+auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
+									llvm::Value* right) -> llvm::Value*
 {
 	m_logger->debug("{} [{}] Begin:", op.get_kind_str(), op.get_type_str());
 
 	llvm::Value* result = nullptr;
-	llvm::Value* left_value = left->value;
-	llvm::Value* right_value = right->value;
 	
 	switch(op.get_type())
 	{
 	case Operator::op_add:
-		result = m_builder.CreateAdd(left_value, right_value);
+		result = m_builder.CreateAdd(left, right);
 		break;
 	case Operator::op_sub:
-		result = m_builder.CreateSub(left_value, right_value);
+		result = m_builder.CreateSub(left, right);
 		break;
 	case Operator::op_mul:
-		result = m_builder.CreateMul(left_value, right_value);
+		result = m_builder.CreateMul(left, right);
 		break;
 	case Operator::op_div:
-		result = m_builder.CreateSDiv(left_value, right_value);
+		result = m_builder.CreateSDiv(left, right);
 		break;
 	case Operator::op_mod:
-		result = m_builder.CreateSRem(left_value, right_value);
+		result = m_builder.CreateSRem(left, right);
 		break;
 	case Operator::op_lt:
-		result = m_builder.CreateICmpSLT(left_value, right_value);
+		result = m_builder.CreateICmpSLT(left, right);
 		break;
 	case Operator::op_le:
-		result = m_builder.CreateICmpSLE(left_value, right_value);
+		result = m_builder.CreateICmpSLE(left, right);
 		break;
 	case Operator::op_gt:
-		result = m_builder.CreateICmpSGT(left_value, right_value);
+		result = m_builder.CreateICmpSGT(left, right);
 		break;
 	case Operator::op_ge:
-		result = m_builder.CreateICmpSGE(left_value, right_value);
+		result = m_builder.CreateICmpSGE(left, right);
 		break;
 	case Operator::op_eq:
-		result = m_builder.CreateICmpEQ(left_value, right_value);
+		result = m_builder.CreateICmpEQ(left, right);
 		break;
 	case Operator::op_ne:
-		result = m_builder.CreateICmpNE(left_value, right_value);
+		result = m_builder.CreateICmpNE(left, right);
 		break;
 	case Operator::op_land:
-		left_value = m_builder.CreateTrunc(left_value, llvm::Type::getInt1Ty(m_module->getContext()));
-		right_value = m_builder.CreateTrunc(right_value, llvm::Type::getInt1Ty(m_module->getContext()));
-		result = m_builder.CreateLogicalAnd(left_value, right_value);
+		left = m_builder.CreateTrunc(left, llvm::Type::getInt1Ty(m_module->getContext()));
+		right = m_builder.CreateTrunc(right, llvm::Type::getInt1Ty(m_module->getContext()));
+		result = m_builder.CreateLogicalAnd(left, right);
 		break;
 	case Operator::op_lor:
-		left_value = m_builder.CreateTrunc(left_value, llvm::Type::getInt1Ty(m_module->getContext()));
-		right_value = m_builder.CreateTrunc(right_value, llvm::Type::getInt1Ty(m_module->getContext()));
-		result = m_builder.CreateLogicalOr(left_value, right_value);
+		left = m_builder.CreateTrunc(left, llvm::Type::getInt1Ty(m_module->getContext()));
+		right = m_builder.CreateTrunc(right, llvm::Type::getInt1Ty(m_module->getContext()));
+		result = m_builder.CreateLogicalOr(left, right);
 		break;
 	default:
 		//在二元运算符中
@@ -573,8 +558,7 @@ auto CodeGenVisitor::binary_operate(std::shared_ptr<SymbolEntry> left,
 
 	m_logger->debug("{} [{}] End", op.get_kind_str(), op.get_type_str());
 
-	//return result;
-	return nullptr;
+	return result;
 }
 
 void CodeGenVisitor::handle(const VarDecl& node, LocalSymbolTable& table)
@@ -594,27 +578,34 @@ void CodeGenVisitor::handle(const VarDef& node, llvm::Type* type,
 	D_BEGIN;
 
 	auto name_str = handle(node.get_ident());
-	auto right_value = handle(node.get_init_val(), table);
 
-	ConversionResult cvt_result;
-	if (right_value->is_eval)
-		cvt_result = m_cvt_helper->value_conversion(type, right_value->value->getType());
-	else
-		assert(false);
-	
-	auto left_type = report_conversion_result(cvt_result, node);
-	if (left_type == nullptr)
-		return;
-	
 	// 创建一个新的局部变量，分配内存
 	llvm::AllocaInst* alloca_inst =
 		new llvm::AllocaInst(type, 0, name_str, m_builder.GetInsertBlock());
 
-	// 创建一个赋值指令，将右侧值存储到分配的内存中
-	if (right_value->is_eval)
-		m_builder.CreateStore(right_value->value, alloca_inst);
-	else
-		assert(false);
+	if (node.is_initialized())
+	{
+
+		ConversionResult cvt_result;
+		auto right_entry = handle(node.get_init_val(), table);
+		// 判断隐式类型转换是否合法
+		cvt_result =
+			m_cvt_helper->value_conversion(type, right_entry->value->getType());
+		auto left_type = report_conversion_result(cvt_result, node);
+		if (left_type == nullptr)
+			return;
+
+		// 创建一个赋值指令，将右侧值存储到分配的内存中
+		llvm::Value* right_value =
+			right_entry->is_eval
+				? right_entry->value
+				// 读取左侧动态变量的值
+				: m_builder.CreateLoad(left_type, right_entry->alloca);
+
+		m_builder.CreateStore(right_value, alloca_inst);
+	}
+	// 在符号表中添加对应条目
+	table.insert(name_str, alloca_inst);
 
 	D_END;
 }
@@ -632,7 +623,7 @@ void CodeGenVisitor::handle(const VarDefList& node, llvm::Type* type,
 }
 
 auto CodeGenVisitor::handle(const InitVal& node, LocalSymbolTable& table)
-	-> std::shared_ptr<SymbolEntry>
+	-> llvm::Value*
 {
 	D_BEGIN;
 	auto result = handle(node.get_expr(), table);

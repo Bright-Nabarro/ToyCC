@@ -51,48 +51,46 @@ private:
 	
 	auto handle(const Param& node) -> llvm::Type*;
 
-	auto handle(const Number& num) -> std::shared_ptr<SymbolEntry>;
+	auto handle(const Number& num) -> llvm::Value*;
 	auto handle(const Ident& node) -> std::string_view;
 
 	void handle(const Decl& node, LocalSymbolTable& table);
 	void handle(const ConstDecl& node, LocalSymbolTable& table);
 
 	void handle(const Stmt& node, LocalSymbolTable& table);
-	auto handle(const Expr& expr, LocalSymbolTable& table)
-		-> std::shared_ptr<SymbolEntry>;
+	auto handle(const Expr& expr, LocalSymbolTable& table) -> llvm::Value*;
 	auto handle(const PrimaryExpr& node, LocalSymbolTable& table)
-		-> std::shared_ptr<SymbolEntry>;
-	auto handle(const UnaryExpr& node, LocalSymbolTable& table)
-		-> std::shared_ptr<SymbolEntry>;
+		-> llvm::Value*;
+	auto handle(const UnaryExpr& node, LocalSymbolTable& table) -> llvm::Value*;
 
 	void handle(const ConstDef& node, llvm::Type* type, LocalSymbolTable& table);
 	void handle(const ConstDefList& node, llvm::Type* type, LocalSymbolTable& table);
 	auto handle(const ConstInitVal& node, LocalSymbolTable& table)
 		-> llvm::Value*;
 	auto handle(const ConstExpr& node, LocalSymbolTable& table) -> llvm::Value*;
-	/// @return 如果无法查找到返回nullptr
+	/**
+	 * @note 调用此函数后，左值创建一个读取指令，返回右值，所以不支持自增和自减运算符
+	 * @return 如果无法查找到返回nullptr
+	 */
 	auto handle(const LVal& node, LocalSymbolTable& table)
-		-> std::shared_ptr<SymbolEntry>;
+		-> llvm::Value*;
 	
 	void handle(const VarDecl& node, LocalSymbolTable& table);
 	void handle(const VarDef& node, llvm::Type* type, LocalSymbolTable& table);
 	void handle(const VarDefList& node, llvm::Type* type, LocalSymbolTable& table);
-	auto handle(const InitVal& node, LocalSymbolTable& table)
-		-> std::shared_ptr<SymbolEntry>;
+	auto handle(const InitVal& node, LocalSymbolTable& table) -> llvm::Value*;
 
 	/// @note 在上层会传入所有的BinaryExpr, 无需在实现文件中显式实例化声明
 	template <typename TBinaryExpr>
 		requires std::derived_from<TBinaryExpr, BinaryExprBase>
 	auto handle(const TBinaryExpr& node, LocalSymbolTable& table)
-		-> std::shared_ptr<SymbolEntry>;
+		-> llvm::Value*;
 
 	/// @brief 一元运算符处理
-	auto unary_operate(const UnaryOp& op, std::shared_ptr<SymbolEntry> operand)
-		-> std::shared_ptr<SymbolEntry>;
+	auto unary_operate(const UnaryOp& op, llvm::Value* operand) -> llvm::Value*;
 	/// @brief 二元运算符通用处理函数
-	auto binary_operate(std::shared_ptr<SymbolEntry> left, const Operator& op,
-						std::shared_ptr<SymbolEntry> right)
-		-> std::shared_ptr<SymbolEntry>;
+	auto binary_operate(llvm::Value* left, const Operator& op,
+						llvm::Value* right) -> llvm::Value*;
 
 	auto report_conversion_result(const ConversionResult& result,
 								  const BaseAST& node) -> llvm::Type*;
