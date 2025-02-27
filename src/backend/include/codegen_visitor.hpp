@@ -51,17 +51,19 @@ private:
 	
 	auto handle(const Param& node) -> llvm::Type*;
 
-	auto handle(const Number& num) -> llvm::Value*;
+	auto handle(const Number& num) -> std::shared_ptr<SymbolEntry>;
 	auto handle(const Ident& node) -> std::string_view;
 
 	void handle(const Decl& node, LocalSymbolTable& table);
 	void handle(const ConstDecl& node, LocalSymbolTable& table);
 
 	void handle(const Stmt& node, LocalSymbolTable& table);
-	auto handle(const Expr& expr, LocalSymbolTable& table) -> llvm::Value*;
+	auto handle(const Expr& expr, LocalSymbolTable& table)
+		-> std::shared_ptr<SymbolEntry>;
 	auto handle(const PrimaryExpr& node, LocalSymbolTable& table)
-		-> llvm::Value*;
-	auto handle(const UnaryExpr& node, LocalSymbolTable& table) -> llvm::Value*;
+		-> std::shared_ptr<SymbolEntry>;
+	auto handle(const UnaryExpr& node, LocalSymbolTable& table)
+		-> std::shared_ptr<SymbolEntry>;
 
 	void handle(const ConstDef& node, llvm::Type* type, LocalSymbolTable& table);
 	void handle(const ConstDefList& node, llvm::Type* type, LocalSymbolTable& table);
@@ -69,7 +71,8 @@ private:
 		-> llvm::Value*;
 	auto handle(const ConstExpr& node, LocalSymbolTable& table) -> llvm::Value*;
 	/// @return 如果无法查找到返回nullptr
-	auto handle(const LVal& node, LocalSymbolTable& table) -> llvm::Value*;
+	auto handle(const LVal& node, LocalSymbolTable& table)
+		-> std::shared_ptr<SymbolEntry>;
 	
 	void handle(const VarDecl& node, LocalSymbolTable& table);
 	void handle(const VarDef& node, llvm::Type* type, LocalSymbolTable& table);
@@ -80,13 +83,15 @@ private:
 	template <typename TBinaryExpr>
 		requires std::derived_from<TBinaryExpr, BinaryExprBase>
 	auto handle(const TBinaryExpr& node, LocalSymbolTable& table)
-		-> llvm::Value*;
+		-> std::shared_ptr<SymbolEntry>;
 
 	/// @brief 一元运算符处理
-	auto unary_operate(const UnaryOp& op, llvm::Value* operand) -> llvm::Value*;
+	auto unary_operate(const UnaryOp& op, std::shared_ptr<SymbolEntry> operand)
+		-> std::shared_ptr<SymbolEntry>;
 	/// @brief 二元运算符通用处理函数
-	auto binary_operate(llvm::Value* left, const Operator& op,
-						llvm::Value* right) -> llvm::Value*;
+	auto binary_operate(std::shared_ptr<SymbolEntry> left, const Operator& op,
+						std::shared_ptr<SymbolEntry> right)
+		-> std::shared_ptr<SymbolEntry>;
 
 	auto report_conversion_result(const ConversionResult& result,
 								  const BaseAST& node) -> llvm::Type*;

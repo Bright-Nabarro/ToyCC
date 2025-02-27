@@ -220,11 +220,11 @@ auto CodeGenVisitor::handle(const Expr& node, LocalSymbolTable& table)
 }
 
 auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
-	-> llvm::Value*
+	-> std::shared_ptr<SymbolEntry>
 {
 	D_BEGIN;
 
-	llvm::Value* result = nullptr;
+	std::shared_ptr<SymbolEntry> result = nullptr;
 	if (node.has_expr())
 	{
 		result = handle(node.get_expr(), table);	
@@ -248,11 +248,11 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 }
 
 auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
-	-> llvm::Value*
+	-> std::shared_ptr<SymbolEntry>
 {
 	D_BEGIN;
 
-	llvm::Value* result = nullptr;
+	std::shared_ptr<SymbolEntry> result = nullptr;
 	if (node.has_unary_expr())
 	{
 		result = handle(node.get_unary_expr(), table);
@@ -271,13 +271,15 @@ auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 	return result;
 }
 
-auto CodeGenVisitor::handle(const Number& node) -> llvm::Value*
+auto CodeGenVisitor::handle(const Number& node) -> std::shared_ptr<SymbolEntry>
 {
 	D_BEGIN;
 
-	llvm::Value* result = llvm::ConstantInt::get(m_type_mgr->get_signed_int(),
+	llvm::Value* value = llvm::ConstantInt::get(m_type_mgr->get_signed_int(),
 											 node.get_int_literal());
+	auto result = std::make_shared<SymbolEntry>(value);
 	D_END;
+
 	return result;
 }
 
@@ -366,69 +368,75 @@ auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table) -> l
 }
 
 auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
-	-> llvm::Value*
+	-> std::shared_ptr<SymbolEntry>
 {
 	D_BEGIN;
 	auto name = handle(node.get_id());
 	auto value = table.lookup(name);
-	if (value == std::nullopt)
+	if (value == nullptr)
 	{
 		report_in_ast(node, Location::dk_error,
 					std::format("Variable {} not defined", name));
 		return nullptr;
 	}
-	assert(value != nullptr);
 
 	D_END;
 	
-	return *value;
+	return value;
 }
 
-auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
-	-> llvm::Value*
+auto CodeGenVisitor::unary_operate(const UnaryOp& op, std::shared_ptr<SymbolEntry> operand)
+	-> std::shared_ptr<SymbolEntry>
 {
 	m_logger->debug("UnaryOp[{}] Begin", op.get_type_str());
-	llvm::Type* type = operand->getType();
-	llvm::Value* result = nullptr;
+	std::shared_ptr<SymbolEntry> result = nullptr;
 
-	if (!type->isIntegerTy() && !type->isFloatingPointTy())
+	if (operand->is_eval)
 	{
-		m_logger->error("Expected type in UnaryOp");
-		return nullptr;
-	}
-
-	switch(op.get_type())
-	{
-	case UnaryOp::op_add:
-		result = operand;
-		break;
-	case UnaryOp::op_sub:
-		if (type->isIntegerTy())
-			result = m_builder.CreateNeg(operand);
-		else 
-			result = m_builder.CreateFNeg(operand);
-		break;
-	/// c语言not操作将操作数转换为int类型
-	case UnaryOp::op_not: {
-		llvm::Value* zero = llvm::ConstantInt::get(type, 0);
-		llvm::Value* is_nonzero = nullptr;
-		if (type->isIntegerTy())
+		llvm::Value* value = operand.value;
+		llvm::Value* result_value = nullptr;
+		llvm::Type* type = value->getType();
+		if (!type->isIntegerTy() && !type->isFloatingPointTy())
 		{
-			is_nonzero = m_builder.CreateICmpNE(operand, zero);
+			m_logger->error("Expected type in UnaryOp");
+			return nullptr;
 		}
-		else
-		{
-			is_nonzero = m_builder.CreateFCmpUNE(operand, zero);
-		}
-		llvm::Value* int_value = m_builder.CreateZExt(is_nonzero, m_type_mgr->get_signed_int());
 
-		result = m_builder.CreateNot(int_value);
-		break;
-	}
-	default:
-		m_logger->error("Unkown operation: {}, category: {}",
-				  static_cast<int>(op.get_type()), op.get_type_str());
-		result = nullptr;
+		switch (op.get_type())
+		{
+		case UnaryOp::op_add:
+			result = operand;
+			break;
+		case UnaryOp::op_sub:
+			if (type->isIntegerTy())
+				result_value = m_builder.CreateNeg(value);
+			else
+				result_value = m_builder.CreateFNeg(value);
+			break;
+		/// c语言not操作将操作数转换为int类型
+		case UnaryOp::op_not:
+		{
+			llvm::Value* zero = llvm::ConstantInt::get(type, 0);
+			llvm::Value* is_nonzero = nullptr;
+			if (type->isIntegerTy())
+			{
+				is_nonzero = m_builder.CreateICmpNE(value, zero);
+			}
+			else
+			{
+				is_nonzero = m_builder.CreateFCmpUNE(value, zero);
+			}
+			llvm::Value* int_value =
+				m_builder.CreateZExt(is_nonzero, m_type_mgr->get_signed_int());
+
+			result_value = m_builder.CreateNot(int_value);
+			break;
+		}
+		default:
+			m_logger->error("Unkown operation: {}, category: {}",
+							static_cast<int>(op.get_type()), op.get_type_str());
+			result = nullptr;
+		}
 	}
 
 	m_logger->debug("UnaryOp[{}] Begin", op.get_type_str());
@@ -448,11 +456,11 @@ auto CodeGenVisitor::handle(const Param& node) -> llvm::Type*
 template <typename TBinaryExpr>
 	requires std::derived_from<TBinaryExpr, BinaryExprBase>
 auto CodeGenVisitor::handle(const TBinaryExpr& node, LocalSymbolTable& table)
-	-> llvm::Value*
+	-> std::shared_ptr<SymbolEntry>
 {
 	D_BEGIN;
 
-	llvm::Value* result = nullptr;
+	std::shared_ptr<SymbolEntry> result = nullptr;
 
 	if (node.has_higher_expr())
 	{
@@ -494,57 +502,61 @@ auto CodeGenVisitor::report_conversion_result(const ConversionResult& result,
 	}
 }
 
-auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
-									llvm::Value* right) -> llvm::Value*
+auto CodeGenVisitor::binary_operate(std::shared_ptr<SymbolEntry> left,
+									const Operator& op,
+									std::shared_ptr<SymbolEntry> right)
+	-> std::shared_ptr<SymbolEntry>
 {
 	m_logger->debug("{} [{}] Begin:", op.get_kind_str(), op.get_type_str());
 
 	llvm::Value* result = nullptr;
+	llvm::Value* left_value = left->value;
+	llvm::Value* right_value = right->value;
 	
 	switch(op.get_type())
 	{
 	case Operator::op_add:
-		result = m_builder.CreateAdd(left, right);
+		result = m_builder.CreateAdd(left_value, right_value);
 		break;
 	case Operator::op_sub:
-		result = m_builder.CreateSub(left, right);
+		result = m_builder.CreateSub(left_value, right_value);
 		break;
 	case Operator::op_mul:
-		result = m_builder.CreateMul(left, right);
+		result = m_builder.CreateMul(left_value, right_value);
 		break;
 	case Operator::op_div:
-		result = m_builder.CreateSDiv(left, right);
+		result = m_builder.CreateSDiv(left_value, right_value);
 		break;
 	case Operator::op_mod:
-		result = m_builder.CreateSRem(left, right);
+		result = m_builder.CreateSRem(left_value, right_value);
 		break;
 	case Operator::op_lt:
-		result = m_builder.CreateICmpSLT(left, right);
+		result = m_builder.CreateICmpSLT(left_value, right_value);
 		break;
 	case Operator::op_le:
-		result = m_builder.CreateICmpSLE(left, right);
+		result = m_builder.CreateICmpSLE(left_value, right_value);
 		break;
 	case Operator::op_gt:
-		result = m_builder.CreateICmpSGT(left, right);
+		result = m_builder.CreateICmpSGT(left_value, right_value);
 		break;
 	case Operator::op_ge:
-		result = m_builder.CreateICmpSGE(left, right);
+		result = m_builder.CreateICmpSGE(left_value, right_value);
 		break;
 	case Operator::op_eq:
-		result = m_builder.CreateICmpEQ(left, right);
+		result = m_builder.CreateICmpEQ(left_value, right_value);
 		break;
 	case Operator::op_ne:
-		result = m_builder.CreateICmpNE(left, right);
+		result = m_builder.CreateICmpNE(left_value, right_value);
 		break;
 	case Operator::op_land:
-		left = m_builder.CreateTrunc(left, llvm::Type::getInt1Ty(m_module->getContext()));
-		right = m_builder.CreateTrunc(right, llvm::Type::getInt1Ty(m_module->getContext()));
-		result = m_builder.CreateLogicalAnd(left, right);
+		left_value = m_builder.CreateTrunc(left_value, llvm::Type::getInt1Ty(m_module->getContext()));
+		right_value = m_builder.CreateTrunc(right_value, llvm::Type::getInt1Ty(m_module->getContext()));
+		result = m_builder.CreateLogicalAnd(left_value, right_value);
 		break;
 	case Operator::op_lor:
-		left = m_builder.CreateTrunc(left, llvm::Type::getInt1Ty(m_module->getContext()));
-		right = m_builder.CreateTrunc(right, llvm::Type::getInt1Ty(m_module->getContext()));
-		result = m_builder.CreateLogicalOr(left, right);
+		left_value = m_builder.CreateTrunc(left_value, llvm::Type::getInt1Ty(m_module->getContext()));
+		right_value = m_builder.CreateTrunc(right_value, llvm::Type::getInt1Ty(m_module->getContext()));
+		result = m_builder.CreateLogicalOr(left_value, right_value);
 		break;
 	default:
 		//在二元运算符中
@@ -556,7 +568,8 @@ auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 
 	m_logger->debug("{} [{}] End", op.get_kind_str(), op.get_type_str());
 
-	return result;
+	//return result;
+	return nullptr;
 }
 
 void CodeGenVisitor::handle(const VarDecl& node, LocalSymbolTable& table)
