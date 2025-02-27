@@ -25,7 +25,7 @@ ConstInitVal 	::= ConstExpr;
 VarDecl 		::= ScalarType VarDef VarDefList ";";
 VarDef 			::= Ident | Ident "=" InitVal;
 VarDefList		::= /* empty */ | VarDefList ',' VarDef ;
-	InitVal 		::= Expr;
+InitVal 		::= Expr;
 
 # 块 (暂时不支持嵌套块)
 	[没有作用域处理] Block       	::= "{" BlockItemList "}";

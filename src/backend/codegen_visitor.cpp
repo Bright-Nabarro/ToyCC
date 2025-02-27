@@ -371,18 +371,22 @@ auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
 	auto name = handle(node.get_id());
-	auto value = table.lookup(name);
-	if (value == std::nullopt)
+	auto entry = table.lookup(name);
+	if (entry == nullptr)
 	{
 		report_in_ast(node, Location::dk_error,
 					std::format("Variable {} not defined", name));
 		return nullptr;
 	}
-	assert(value != nullptr);
+
+	llvm::Value* result =
+		entry->is_eval
+			? entry->value
+			: m_builder.CreateLoad(entry->alloca->getType(), entry->alloca);
 
 	D_END;
 	
-	return *value;
+	return result;
 }
 
 auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
@@ -390,6 +394,7 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 {
 	m_logger->debug("UnaryOp[{}] Begin", op.get_type_str());
 	llvm::Value* result = nullptr;
+	llvm::Type* type = operand->getType();
 
 	if (!type->isIntegerTy() && !type->isFloatingPointTy())
 	{
@@ -587,20 +592,13 @@ void CodeGenVisitor::handle(const VarDef& node, llvm::Type* type,
 	{
 
 		ConversionResult cvt_result;
-		auto right_entry = handle(node.get_init_val(), table);
+		auto right_value = handle(node.get_init_val(), table);
 		// 判断隐式类型转换是否合法
 		cvt_result =
-			m_cvt_helper->value_conversion(type, right_entry->value->getType());
+			m_cvt_helper->value_conversion(type, right_value->getType());
 		auto left_type = report_conversion_result(cvt_result, node);
 		if (left_type == nullptr)
 			return;
-
-		// 创建一个赋值指令，将右侧值存储到分配的内存中
-		llvm::Value* right_value =
-			right_entry->is_eval
-				? right_entry->value
-				// 读取左侧动态变量的值
-				: m_builder.CreateLoad(left_type, right_entry->alloca);
 
 		m_builder.CreateStore(right_value, alloca_inst);
 	}
