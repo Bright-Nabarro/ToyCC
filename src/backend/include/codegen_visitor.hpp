@@ -77,7 +77,8 @@ private:
 	void handle(const VarDecl& node, LocalSymbolTable& table);
 	void handle(const VarDef& node, llvm::Type* type, LocalSymbolTable& table);
 	void handle(const VarDefList& node, llvm::Type* type, LocalSymbolTable& table);
-	auto handle(const InitVal& node, LocalSymbolTable& table) -> llvm::Value*;
+	auto handle(const InitVal& node, LocalSymbolTable& table)
+		-> std::shared_ptr<SymbolEntry>;
 
 	/// @note 在上层会传入所有的BinaryExpr, 无需在实现文件中显式实例化声明
 	template <typename TBinaryExpr>

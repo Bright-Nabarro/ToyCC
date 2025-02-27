@@ -9,7 +9,7 @@ LocalSymbolTable::LocalSymbolTable(LocalSymbolTable* upper_table):
 
 auto LocalSymbolTable::insert(std::string_view name, llvm::Value* value) -> bool
 {
-	auto entry = std::make_shared<SymbolEntry>(true, value);
+	auto entry = std::make_shared<SymbolEntry>(value);
 	auto [_, success] = m_table.emplace(name, entry);
 
 	return success;
@@ -18,7 +18,7 @@ auto LocalSymbolTable::insert(std::string_view name, llvm::Value* value) -> bool
 
 auto LocalSymbolTable::insert(std::string_view name, llvm::AllocaInst* alloca) -> bool
 {
-	auto entry = std::make_shared<SymbolEntry>(false, alloca);
+	auto entry = std::make_shared<SymbolEntry>(alloca);
 	auto [_, success] = m_table.emplace(name, entry);
 
 	return success;

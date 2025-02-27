@@ -2,6 +2,7 @@ signed main()
 {
 	// 1
 	/* sdfsdf */
-	return 1 + 2;
+	eval int a = 1;
+	return a;
 	
 }

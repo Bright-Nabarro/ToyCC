@@ -22,9 +22,9 @@ ConstDecl 		::= "eval" ScalarType ConstDef ConstDefList ";";
 ConstDef		::= Ident "=" ConstInitVal; 	# 赋值的逻辑在其handler中完成
 	[返回类型可能需要修改] ConstDefList 	::= /* empty */ | ConstDefList ',' ConstDef
 ConstInitVal 	::= ConstExpr;
-	VarDecl 		::= ScalarType VarDef VarDefList ";";
-	VarDef 			::= Ident | Ident "=" InitVal;
-	VarDefList		::= /* empty */ | VarDefList ',' VarDef ;
+VarDecl 		::= ScalarType VarDef VarDefList ";";
+VarDef 			::= Ident | Ident "=" InitVal;
+VarDefList		::= /* empty */ | VarDefList ',' VarDef ;
 	InitVal 		::= Expr;
 
 # 块 (暂时不支持嵌套块)

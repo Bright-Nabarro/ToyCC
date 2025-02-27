@@ -9,6 +9,14 @@ namespace toycc
 
 struct SymbolEntry
 {
+	SymbolEntry(llvm::Value* value_):
+		is_eval { true }, value { value_ }
+	{}
+
+	SymbolEntry(llvm::AllocaInst* alloca_):
+		is_eval { false }, alloca { alloca_ }
+	{}
+
 	bool is_eval;
 	union
 	{

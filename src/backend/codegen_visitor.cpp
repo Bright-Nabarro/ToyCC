@@ -196,21 +196,25 @@ void CodeGenVisitor::handle(const BlockItem& node, LocalSymbolTable& table)
 void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	auto value = handle(node.get_expr(), table);
+	auto entry = handle(node.get_expr(), table);
 
-	if (value == nullptr) //出错
+	if (entry == nullptr) //出错
 	{
+	}
+	else if (entry->is_eval)
+	{
+		m_builder.CreateRet(entry->value);
 	}
 	else
 	{
-		m_builder.CreateRet(value);
+		assert(false);
 	}
 	
 	D_END;
 }
 
 auto CodeGenVisitor::handle(const Expr& node, LocalSymbolTable& table)
-	-> llvm::Value*
+	-> std::shared_ptr<SymbolEntry>
 {
 	D_BEGIN;
 	auto ret = handle(node.get_low_expr(), table);
@@ -358,13 +362,15 @@ auto CodeGenVisitor::handle(const ConstInitVal& node, LocalSymbolTable& table)
 	return ret;
 }
 
-auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table) -> llvm::Value*
+auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table)
+	-> llvm::Value*
 {
 	D_BEGIN;
 	auto result = handle(node.get_expr(), table);
+	assert(result->is_eval);
 	D_END;
-
-	return result;
+	
+	return result->value;
 }
 
 auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
@@ -393,8 +399,7 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, std::shared_ptr<SymbolEntr
 
 	if (operand->is_eval)
 	{
-		llvm::Value* value = operand.value;
-		llvm::Value* result_value = nullptr;
+		llvm::Value* value = operand->value;
 		llvm::Type* type = value->getType();
 		if (!type->isIntegerTy() && !type->isFloatingPointTy())
 		{
@@ -409,9 +414,9 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, std::shared_ptr<SymbolEntr
 			break;
 		case UnaryOp::op_sub:
 			if (type->isIntegerTy())
-				result_value = m_builder.CreateNeg(value);
+				result->value = m_builder.CreateNeg(value);
 			else
-				result_value = m_builder.CreateFNeg(value);
+				result->value = m_builder.CreateFNeg(value);
 			break;
 		/// c语言not操作将操作数转换为int类型
 		case UnaryOp::op_not:
@@ -429,7 +434,7 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, std::shared_ptr<SymbolEntr
 			llvm::Value* int_value =
 				m_builder.CreateZExt(is_nonzero, m_type_mgr->get_signed_int());
 
-			result_value = m_builder.CreateNot(int_value);
+			result->value = m_builder.CreateNot(int_value);
 			break;
 		}
 		default:
@@ -589,9 +594,13 @@ void CodeGenVisitor::handle(const VarDef& node, llvm::Type* type,
 	D_BEGIN;
 
 	auto name_str = handle(node.get_ident());
-	auto* right_value = handle(node.get_init_val(), table);
+	auto right_value = handle(node.get_init_val(), table);
 
-	auto cvt_result = m_cvt_helper->value_conversion(type, right_value->getType());
+	ConversionResult cvt_result;
+	if (right_value->is_eval)
+		cvt_result = m_cvt_helper->value_conversion(type, right_value->value->getType());
+	else
+		assert(false);
 	
 	auto left_type = report_conversion_result(cvt_result, node);
 	if (left_type == nullptr)
@@ -602,7 +611,10 @@ void CodeGenVisitor::handle(const VarDef& node, llvm::Type* type,
 		new llvm::AllocaInst(type, 0, name_str, m_builder.GetInsertBlock());
 
 	// 创建一个赋值指令，将右侧值存储到分配的内存中
-	m_builder.CreateStore(right_value, alloca_inst);
+	if (right_value->is_eval)
+		m_builder.CreateStore(right_value->value, alloca_inst);
+	else
+		assert(false);
 
 	D_END;
 }
@@ -620,7 +632,7 @@ void CodeGenVisitor::handle(const VarDefList& node, llvm::Type* type,
 }
 
 auto CodeGenVisitor::handle(const InitVal& node, LocalSymbolTable& table)
-	-> llvm::Value*
+	-> std::shared_ptr<SymbolEntry>
 {
 	D_BEGIN;
 	auto result = handle(node.get_expr(), table);
