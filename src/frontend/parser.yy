@@ -45,6 +45,7 @@ namespace toycc { class Driver; }
 %token KW_RETURN
 %token KW_SINT KW_UINT KW_VOID 
 %token KW_CONST KW_EVAL
+%token KW_IF KW_ELSE
 // 字面量标识分隔符
 %token DELIM_LPAREN		"("
 %token DELIM_RPAREN		")"
@@ -349,6 +350,14 @@ Stmt
 	| Block {
 		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
 			toycc::Stmt::block, std::move($1));
+	}
+	| KW_IF "(" Expr ")" Stmt {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			toycc::Stmt::if_stmt, std::move($1));
+	}
+	| KW_IF "(" Expr ")" Stmt KW_ELSE Stmt {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			toycc::Stmt::if_stmt, std::move($1), std::move($2));
 	};
 
 Expr

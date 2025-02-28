@@ -22,6 +22,7 @@ public:
 		expression,
 		block,
 		func_return,
+		if_stmt,	// stmt的存储以第一个if语句为开始，按顺序存储
 	};
 	Stmt(std::unique_ptr<Location> location, StmtType type);
 
@@ -33,6 +34,13 @@ public:
 
 	Stmt(std::unique_ptr<Location> location, StmtType type,
 		std::unique_ptr<Block> block);
+
+	Stmt(std::unique_ptr<Location> location, StmtType type,
+		std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> if_stmt);
+
+	Stmt(std::unique_ptr<Location> location, StmtType type,
+		std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> if_stmt,
+		std::unique_ptr<Stmt> else_stmt);
 
 	~Stmt();
 
@@ -52,11 +60,15 @@ public:
 	[[nodiscard]]
 	auto get_block() const -> const Block&;
 
+	[[nodiscard]]
+	auto get_stmts() const -> const std::vector<std::unique_ptr<Stmt>>&;
+
 private:
 	StmtType m_type;
 	std::unique_ptr<LVal> m_lval;
 	std::unique_ptr<Expr> m_expr;
 	std::unique_ptr<Block> m_block;
+	std::vector<std::unique_ptr<Stmt>> m_stmts;
 };
 
 

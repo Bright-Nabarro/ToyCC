@@ -7,28 +7,60 @@ namespace toycc
 Stmt::~Stmt() {}
 
 Stmt::Stmt(std::unique_ptr<Location> location, StmtType type):
-	BaseAST { ast_stmt, std::move(location) }, m_type { type }
-{}
+	BaseAST { ast_stmt, std::move(location) }, m_type { type },
+		m_lval { nullptr }, m_expr { nullptr },
+		m_block { nullptr }, m_stmts{}
+{
+	assert(type == StmtType::func_return || type == StmtType::expression);
+}
 	
 Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
 	 std::unique_ptr<Expr> expr):
 	BaseAST { ast_stmt, std::move(location) }, m_type { type },
 		m_lval { nullptr }, m_expr { std::move(expr) },
-		m_block { nullptr }
-{}
+		m_block { nullptr }, m_stmts{}
+{
+	assert(type == StmtType::func_return || type == StmtType::expression);
+}
 
 Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
            std::unique_ptr<LVal> lval, std::unique_ptr<Expr> expr)
     : BaseAST{ast_stmt, std::move(location)}, m_type{type},
       m_lval{std::move(lval)}, m_expr{std::move(expr)},
-      m_block{nullptr} {}
+      m_block{nullptr}, m_stmts{}
+{
+	assert(type == StmtType::assign);
+}
 
 Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
 		   std::unique_ptr<Block> block)
 	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
-	  m_expr{nullptr}, m_block{std::move(block)}
+	  m_expr{nullptr}, m_block{std::move(block)}, m_stmts{}
 {
+	assert(type == StmtType::block);
 }
+
+Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
+	std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> if_stmt)
+	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
+	  m_expr{std::move(expr)}, m_block{}, m_stmts {}
+{
+	assert(type == StmtType::if_stmt);
+	m_stmts.push_back(std::move(if_stmt));
+}
+
+
+Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
+	std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> if_stmt,
+	std::unique_ptr<Stmt> else_stmt)
+	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
+	  m_expr{std::move(expr)}, m_block{}, m_stmts {}
+{
+	m_stmts.push_back(std::move(if_stmt));
+	m_stmts.push_back(std::move(else_stmt));
+}
+
+
 auto Stmt::has_expr() const -> bool
 {
 	assert(m_type == Stmt::expression || m_type == Stmt::func_return);
