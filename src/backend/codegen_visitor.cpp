@@ -79,7 +79,7 @@ void CodeGenVisitor::handle(const FuncDef& node)
 		llvm::Function::Create(func_type, llvm::GlobalValue::ExternalLinkage,
 							   func_name, m_module.get());
 
-	handle(node.get_block(), func, "entry");
+	create_basic_block(node.get_block(), func, "entry");
 
 	D_END;
 }
@@ -154,7 +154,7 @@ auto CodeGenVisitor::handle(const ParamList& node) -> std::vector<llvm::Type*>
 	return type_list;
 }
 
-auto CodeGenVisitor::handle(const Block& node, llvm::Function* func,
+auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
 							std::string_view block_name) -> llvm::BasicBlock*
 {
 	D_BEGIN;
@@ -170,6 +170,12 @@ auto CodeGenVisitor::handle(const Block& node, llvm::Function* func,
 
 	D_END;
 	return basic_block;
+}
+
+void CodeGenVisitor::handle(const Block& node, LocalSymbolTable& upper_table)
+{
+	LocalSymbolTable table { upper_table };
+	handle(node.get_block_item_list(), table);
 }
 
 void CodeGenVisitor::handle(const BlockItemList& node, LocalSymbolTable& table)
@@ -196,14 +202,73 @@ void CodeGenVisitor::handle(const BlockItem& node, LocalSymbolTable& table)
 void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	auto value = handle(node.get_expr(), table);
+	switch (node.get_type())
+	{
+	case Stmt::assign:
+	{
+		auto left_entry = handle(node.get_lval(), table);
+		llvm::Value* right_value = handle(node.get_expr(), table);
 
-	if (value == nullptr) //出错
-	{
+		if (left_entry->is_eval) [[unlikely]]
+		{
+			report_in_ast(node, Location::DiagKind::dk_error,
+						  "An eval value cannot be assigned");
+			break;
+		}
+
+		if (left_entry == nullptr) [[unlikely]]
+		{
+			m_logger->info("User Error occured in Stmt::assign left value");
+			break;
+		}
+		if (right_value == nullptr) [[unlikely]]
+		{
+			m_logger->info("User Error occured in Stmt::assign right value");
+			break;
+		}
+
+		m_builder.CreateStore(right_value, left_entry->alloca);
+		
+		break;
 	}
-	else
+	case Stmt::expression:
 	{
+		if (!node.has_expr())
+		{
+			m_logger->debug("Empty Stmt expression");
+			break;
+		}
+
+		auto value = handle(node.get_expr(), table);
+		if (value == nullptr)
+		{
+			m_logger->info("User Error occured in Stmt::expression");
+		}
+		break;
+	}
+	case Stmt::block:
+	{
+		handle(node.get_block(), table);
+		break;
+	}
+	case Stmt::func_return:
+	{
+		if (!node.has_expr())
+		{
+			m_logger->debug("Empty return statement");
+			m_builder.CreateRetVoid();
+			break;
+		}
+		auto value = handle(node.get_expr(), table);
+		if (value == nullptr)
+		{
+			m_logger->info("User Error occured in Stmt::func_return");
+		}
 		m_builder.CreateRet(value);
+		break;
+	}
+	default:
+		assert(false && "Unkown StmtType");
 	}
 	
 	D_END;
@@ -231,7 +296,18 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 	}
 	else if (node.has_ident())
 	{
-		result = handle(node.get_lval(), table);
+		auto entry = handle(node.get_lval(), table);
+
+		if (entry == nullptr)
+		{
+			m_logger->info("User Error Occured in LVal");
+		}
+		else
+		{
+			result = entry->is_eval ?
+				entry->value :
+				m_builder.CreateLoad(entry->alloca->getType(), entry->alloca);
+		}
 	}
 	else if (node.has_number())
 	{
@@ -240,7 +316,7 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 	
 	if (result == nullptr)
 	{
-		report_in_ast(node, Location::dk_error, "Error Occurs in PrimaryExpr");
+		m_logger->info("User Error Occured in PrimaryExpr");
 	}
 
 	D_END;
@@ -367,7 +443,7 @@ auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table)
 }
 
 auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
-	-> llvm::Value*
+	-> std::shared_ptr<SymbolEntry>
 {
 	D_BEGIN;
 	auto name = handle(node.get_id());
@@ -379,14 +455,9 @@ auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
 		return nullptr;
 	}
 
-	llvm::Value* result =
-		entry->is_eval
-			? entry->value
-			: m_builder.CreateLoad(entry->alloca->getType(), entry->alloca);
-
 	D_END;
 	
-	return result;
+	return entry;
 }
 
 auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
