@@ -87,14 +87,14 @@ struct ConversionResult
 	ConversionStatus status;
 	llvm::Type* result_type = nullptr;
 	std::error_code ec;
+
     // 辅助构造函数
 	static auto success(llvm::Type* type) -> ConversionResult
 	{
 		return {ConversionStatus::success, type, utils::conversion_error::none};
 	}
 
-	static auto warning(llvm::Type* type,
-									 utils::conversion_error desc)
+	static auto warning(llvm::Type* type, utils::conversion_error desc)
 		-> ConversionResult
 	{
 		return {ConversionStatus::warning, type, desc};
@@ -108,15 +108,42 @@ struct ConversionResult
 	void set_success(llvm::Type* type);
 	void set_warning(llvm::Type* type, utils::conversion_error desc);
 	void set_failure(utils::conversion_error desc);
+
 };
 
 struct ConversionConfig
 {
 #define CVT_KIND(kind, msg) \
-	bool enable_##kind = true;
+	ConversionStatus kind##_status = ConversionStatus::success; \
+	auto kind##_failure() -> bool \
+	{ return kind##_status == ConversionStatus::failure; } \
+	auto kind##_warning() -> bool \
+	{ return kind##_status == ConversionStatus::warning; } \
+	auto kind##_success() -> bool \
+	{ return kind##_status == ConversionStatus::success; }
+	
 #include "conversion.def"
-#undef CVT_KIND	
+#undef CVT_KIND
+
+	[[nodiscard]]
+	static auto apply_conversion_policy(ConversionStatus status, llvm::Type* type,
+								 utils::conversion_error desc)
+	{
+		switch(status)
+		{
+		case ConversionStatus::success:
+			return ConversionResult::success(type);
+		case ConversionStatus::warning:
+			return ConversionResult::warning(type, desc);
+		case ConversionStatus::failure:
+			return ConversionResult::failure(desc);
+		default:
+			assert(false);
+		}
+
+	}
 };
+
 
 
 /**
@@ -162,6 +189,12 @@ public:
     auto arithmetic_conversion(llvm::Type* left, llvm::Type* right)
         -> ConversionResult;
 
+	/**
+	 * @brief 查询类型转换到bool是否合法
+	 */
+	[[nodiscard]]
+	auto convert_to_bool(llvm::Type* left) -> bool;
+
 protected:
     /**
      * @brief 算数表达式中使用的整型提升, 寻找两个类型之间的较大者返回
@@ -172,10 +205,6 @@ protected:
     auto arithmetic_int_promotion(llvm::Type* left, llvm::Type* right) const
         -> ConversionResult;
 
-	/****************************************************
-	 *  	值变换
-	 ****************************************************/
-protected:
     /**
      * @brief 赋值语句中使用的整型转换(包括窄化,提升,有符号到无符号等)，
      * @param left 期望转换成的目标类型
@@ -184,6 +213,12 @@ protected:
      */
     auto value_int_conversions(llvm::IntegerType* left, llvm::IntegerType* right) const
         -> ConversionResult;
+
+	/**
+	 * @brief 查询浮点是否能够合法转换为整型
+	 */
+	auto int2float(llvm::Type* left, llvm::Type* right) const
+		-> ConversionResult;
 
 private:
     std::shared_ptr<ConversionConfig> m_config; // 配置对象

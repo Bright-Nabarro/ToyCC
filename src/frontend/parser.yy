@@ -353,11 +353,12 @@ Stmt
 	}
 	| KW_IF "(" Expr ")" Stmt {
 		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::if_stmt, std::move($1));
+			toycc::Stmt::if_stmt, std::move($3), std::move($5));
 	}
+	// 1     2   3    4   5     6      7
 	| KW_IF "(" Expr ")" Stmt KW_ELSE Stmt {
 		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::if_stmt, std::move($1), std::move($2));
+			toycc::Stmt::if_stmt, std::move($3), std::move($5), std::move($7));
 	};
 
 Expr

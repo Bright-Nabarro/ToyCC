@@ -83,6 +83,12 @@ auto Stmt::get_block() const -> const Block&
 {
 	assert(m_block && "Stmt does not contain a Block");
 	return *m_block;
+}	
+
+auto Stmt::get_stmts() const -> const std::vector<std::unique_ptr<Stmt>>&
+{
+	assert(!m_stmts.empty());
+	return m_stmts;
 }
 
 /// Param

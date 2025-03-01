@@ -32,7 +32,8 @@ public:
 	 * @param uppertable 指向上层块的指针
 	 * @note 上层块的symbolTable由调用者管理
 	 */
-	LocalSymbolTable(LocalSymbolTable* upper_table = nullptr);
+	LocalSymbolTable(LocalSymbolTable* upper_table);
+	LocalSymbolTable(llvm::Function* func);
 	~LocalSymbolTable() = default;
 
 	/**
@@ -51,9 +52,17 @@ public:
 	auto lookup(std::string_view sv, bool search_this_level = true)
 		-> std::shared_ptr<SymbolEntry>;
 
+	[[nodiscard]]
+	auto get_func() -> llvm::Function*
+	{
+		assert(m_func);
+		return m_func;
+	}
+
 private:
 	std::unordered_map<std::string_view, std::shared_ptr<SymbolEntry>> m_table;
 	LocalSymbolTable* m_upper;
+	llvm::Function* m_func;
 };
 
 }	//namespace toycc

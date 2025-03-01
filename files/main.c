@@ -1,11 +1,15 @@
-signed main()
+int main()
 {
 	// 1
 	/* sdfsdf */
-	int a = 1, b, c;
+	int a = 1;
+	if (a == 2)
 	{
-		int a = 2, c, d, e;
+		a = 0;
+	}
+	else
+	{
+		a = 3;
 	}
 	return a;
-	
 }
