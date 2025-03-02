@@ -4,6 +4,7 @@ if (NOT GTest_FOUND)
 endif()
 
 # unit test
+include_directories(.)
 add_subdirectory(langspec_test)
 add_executable(unit_test "main.cpp")
 

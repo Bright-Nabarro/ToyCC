@@ -53,7 +53,7 @@ auto ConversionHelper::value_conversion(llvm::Type* left, llvm::Type* right)
 		result = value_int_conversions(llvm::cast<llvm::IntegerType>(left),
 										  llvm::cast<llvm::IntegerType>(right));
 	}
-	else if ((left->isFloatTy() || left->isDoubleTy()) && right->isIntegerTy())
+	else if (left->isFloatingPointTy() && right->isIntegerTy())
 	{
 		result = int2float(left, right);
 	}

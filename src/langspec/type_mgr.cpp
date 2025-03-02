@@ -22,18 +22,18 @@ TypeMgr::TypeMgr(llvm::LLVMContext& context, llvm::TargetMachine* target_machine
 {}
 
 #define GET_TYPE(type_name)                                                    \
-	auto TypeMgr::get_##type_name() const->llvm::Type*                        \
+	auto TypeMgr::get_##type_name() const->llvm::Type*                         \
 	{                                                                          \
 		return m_##type_name##_ty;                                             \
 	}
 
 #define GET_SIGN_TYPE(type_name)                                               \
-	auto TypeMgr::get_signed_##type_name() const->llvm::Type*                 \
+	auto TypeMgr::get_signed_##type_name() const->llvm::Type*                  \
 	{                                                                          \
 		return m_s##type_name##_ty;                                            \
 	}                                                                          \
                                                                                \
-	auto TypeMgr::get_unsigned_##type_name() const->llvm::Type*               \
+	auto TypeMgr::get_unsigned_##type_name() const->llvm::Type*                \
 	{                                                                          \
 		return m_u##type_name##_ty;                                            \
 	}

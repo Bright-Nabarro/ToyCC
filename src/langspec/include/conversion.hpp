@@ -149,8 +149,7 @@ struct ConversionConfig
 /**
  * @brief 处理隐式转换的类
  * @note 依据 https://zh.cppreference.com/w/c/language/conversion \
- *       通过参数的特定位置隐式标识 \
- *       C语言没有引用，返回值一律视为右值
+ *       通过参数的特定位置隐式标识
  */
 class ConversionHelper {
 public:

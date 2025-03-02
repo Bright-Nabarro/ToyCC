@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/DerivedTypes.h>
+#include "mock/llvm_base.hpp"
 
 #include "conversion.hpp"
 
@@ -85,10 +86,24 @@ protected:
 	llvm::LLVMContext context;
 	std::shared_ptr<ConversionConfig> config;
 	std::unique_ptr<ConversionHelper> helper;
+
+	std::shared_ptr<MockType> int16_ty;
+	std::shared_ptr<MockType> int32_ty;
+	std::shared_ptr<MockType> int64_ty;
+	std::shared_ptr<MockType> float_ty;
+
 	void SetUp() override
 	{
 		config = std::make_shared<ConversionConfig>();
 		helper = std::make_unique<ConversionHelper>(config, context);
+		int16_ty = std::make_shared<MockType>(context, llvm::Type::TypeID::IntegerTyID);
+		EXPECT_CALL(*int16_ty, isIntegerTy()).WillRepeatedly(testing::Return(true));
+		int32_ty = std::make_shared<MockType>(context, llvm::Type::TypeID::IntegerTyID);
+		EXPECT_CALL(*int32_ty, isIntegerTy()).WillRepeatedly(testing::Return(true));
+		int64_ty = std::make_shared<MockType>(context, llvm::Type::TypeID::IntegerTyID);
+		EXPECT_CALL(*int64_ty, isIntegerTy()).WillRepeatedly(testing::Return(true));
+		float_ty = std::make_shared<MockType>(context, llvm::Type::TypeID::FloatTyID);
+		EXPECT_CALL(*float_ty, isFloatingPointTy()).WillRepeatedly(testing::Return(true));
 	}
 
 	void TearDown() override
@@ -98,19 +113,17 @@ protected:
 
 TEST_F(ConversionHelperTest, F2IValueConversion)
 {
-	llvm::Type* int32_type = llvm::Type::getInt32Ty(context);
-	llvm::Type* float_type = llvm::Type::getFloatTy(context);
-
+	
 	config->float2int_cvt_status = ConversionStatus::success;
-	auto f2i_suc = helper->value_conversion(float_type, int32_type);
+	auto f2i_suc = helper->value_conversion(float_ty.get(), int32_ty.get());
 	EXPECT_EQ(f2i_suc.status, ConversionStatus::success);
 
 	config->float2int_cvt_status = ConversionStatus::warning;
-	auto f2i_warn = helper->value_conversion(float_type, int32_type);
+	auto f2i_warn = helper->value_conversion(float_ty.get(), int32_ty.get());
 	EXPECT_EQ(f2i_warn.status, ConversionStatus::warning);
 
 	config->float2int_cvt_status = ConversionStatus::failure;
-	auto f2i_fail = helper->value_conversion(float_type, int32_type);
+	auto f2i_fail = helper->value_conversion(float_ty.get(), int32_ty.get());
 	EXPECT_EQ(f2i_fail.status, ConversionStatus::failure);
 }
 
