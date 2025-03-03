@@ -1,3 +1,4 @@
+#pragma once
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <llvm/IR/Value.h>
@@ -52,4 +53,5 @@ public:
     MOCK_METHOD(llvm::Type*, getFunctionReturnType, (), (const));
     MOCK_METHOD(bool, isSized, (llvm::DataLayout*), (const));
 };
+
 
