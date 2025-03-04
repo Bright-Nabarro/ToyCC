@@ -4,12 +4,54 @@ namespace toycc
 {
 
 /// Stmt
-Stmt::Stmt(std::unique_ptr<Location> location, std::unique_ptr<Expr> expr):
-	BaseAST {ast_stmt, std::move(location)}, m_expr { std::move(expr) }{}
+Stmt::~Stmt() {}
+
+Stmt::Stmt(std::unique_ptr<Location> location, StmtType type):
+	BaseAST { ast_stmt, std::move(location) }, m_type { type }
+{}
+	
+Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
+	 std::unique_ptr<Expr> expr):
+	BaseAST { ast_stmt, std::move(location) }, m_type { type },
+		m_lval { nullptr }, m_expr { std::move(expr) },
+		m_block { nullptr }
+{}
+
+Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
+           std::unique_ptr<LVal> lval, std::unique_ptr<Expr> expr)
+    : BaseAST{ast_stmt, std::move(location)}, m_type{type},
+      m_lval{std::move(lval)}, m_expr{std::move(expr)},
+      m_block{nullptr} {}
+
+Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
+		   std::unique_ptr<Block> block)
+	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
+	  m_expr{nullptr}, m_block{std::move(block)}
+{
+}
+auto Stmt::has_expr() const -> bool
+{
+	assert(m_type == Stmt::expression || m_type == Stmt::func_return);
+	return m_expr != nullptr;
+}
+
+auto Stmt::get_lval() const -> const LVal&
+{
+	assert(m_lval && "Stmt does not contain a LVal");
+	return *m_lval;
+}
 
 auto Stmt::get_expr() const -> const Expr&
-{ return *m_expr; }
+{
+	assert(m_expr && "Stmt does not contain an Expr");
+	return *m_expr;
+}
 
+auto Stmt::get_block() const -> const Block&
+{
+	assert(m_block && "Stmt does not contain a Block");
+	return *m_block;
+}
 
 /// Param
 Param::Param(std::unique_ptr<Location> location, std::unique_ptr<ScalarType> type,

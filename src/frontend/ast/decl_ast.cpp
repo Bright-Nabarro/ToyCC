@@ -104,15 +104,132 @@ auto ConstDecl::get_const_def_list() const -> const ConstDefList&
 
 /// Decl Implementation
 Decl::Decl(std::unique_ptr<Location> location,
-		   std::unique_ptr<ConstDecl> const_decl)
+		 ConstDeclPtr const_decl)
 	: BaseAST{ast_decl, std::move(location)},
-	  m_const_decl{std::move(const_decl)}
+	  m_value{std::move(const_decl)}
 {
+}
+
+Decl::Decl(std::unique_ptr<Location> location,
+		 VarDeclPtr var_decl)
+	: BaseAST{ast_decl, std::move(location)},
+	  m_value{std::move(var_decl)}
+{
+}
+
+auto Decl::has_const_decl() const -> bool
+{
+	return std::holds_alternative<ConstDeclPtr>(m_value);
+}
+
+auto Decl::has_var_decl() const -> bool
+{
+	return std::holds_alternative<VarDeclPtr>(m_value);
 }
 
 auto Decl::get_const_decl() const -> const ConstDecl&
 {
-	return *m_const_decl;
+	return *std::get<ConstDeclPtr>(m_value);
+}
+
+auto Decl::get_var_decl() const -> const VarDecl&
+{
+	return *std::get<VarDeclPtr>(m_value);
+}
+
+// InitVal implementation
+InitVal::InitVal(std::unique_ptr<Location> location, std::unique_ptr<Expr> expr)
+    : BaseAST{ast_init_val, std::move(location)},
+      m_expr{std::move(expr)}
+{
+}
+
+auto InitVal::get_expr() const -> const Expr&
+{
+    return *m_expr;
+}
+
+// VarDef implementation
+VarDef::VarDef(std::unique_ptr<Location> location, std::unique_ptr<Ident> ident)
+    : BaseAST{ast_var_def, std::move(location)},
+      m_initialized{false},
+      m_ident{std::move(ident)},
+      m_init_val{nullptr}
+{
+}
+
+VarDef::VarDef(std::unique_ptr<Location> location, 
+               std::unique_ptr<Ident> ident,
+               std::unique_ptr<InitVal> init_val)
+    : BaseAST{ast_var_def, std::move(location)},
+      m_initialized{true},
+      m_ident{std::move(ident)},
+      m_init_val{std::move(init_val)}
+{
+}
+
+auto VarDef::is_initialized() const -> bool
+{
+    return m_initialized;
+}
+
+auto VarDef::get_ident() const -> Ident&
+{
+    return *m_ident;
+}
+
+auto VarDef::get_init_val() const -> InitVal&
+{
+    return *m_init_val;
+}
+
+// VarDefList implementation
+VarDefList::VarDefList(std::unique_ptr<Location> location)
+    : BaseAST{ast_var_def_list, std::move(location)}
+{
+}
+
+VarDefList::VarDefList(std::unique_ptr<Location> location,
+                       std::unique_ptr<VarDefList> var_def_list,
+                       std::unique_ptr<VarDef> var_def)
+    : BaseAST{ast_var_def_list, std::move(location)}
+{
+    // Move existing definitions from var_def_list
+    m_var_defs = std::move(var_def_list->m_var_defs);
+    // Add new var_def
+    m_var_defs.push_back(std::move(var_def));
+}
+
+auto VarDefList::get_var_defs() -> const Vector&
+{
+    return m_var_defs;
+}
+
+// VarDecl implementation
+VarDecl::VarDecl(std::unique_ptr<Location> location,
+                 std::unique_ptr<ScalarType> scalar_type,
+                 std::unique_ptr<VarDef> var_def,
+                 std::unique_ptr<VarDefList> var_def_list)
+    : BaseAST{ast_var_decl, std::move(location)},
+      m_scalar_type{std::move(scalar_type)},
+      m_var_def{std::move(var_def)},
+      m_var_def_list{std::move(var_def_list)}
+{
+}
+
+auto VarDecl::get_scalar_type() const -> const ScalarType&
+{
+    return *m_scalar_type;
+}
+
+auto VarDecl::get_var_def() const -> const VarDef&
+{
+    return *m_var_def;
+}
+
+auto VarDecl::get_var_def_list() const -> const VarDefList&
+{
+    return *m_var_def_list;
 }
 
 }	//namespace toycc

@@ -1,4 +1,5 @@
 #pragma once
+#include <llvm/Support/SourceMgr.h>
 #include <memory>
 #include <expected>
 
@@ -36,6 +37,9 @@ public:
 	virtual
 	void report(Location::DiagKind kind, std::string_view msg) const = 0;
 
+	virtual
+	void set_src_mgr(const llvm::SourceMgr* src_mgr) const = 0;
+
 private:
 };
 
@@ -66,8 +70,9 @@ public:
 
 	[[nodiscard]]
 	auto get_kind_str() const -> const char*;
-	
-	void report(Location::DiagKind kind, std::string_view msg) const;
+
+	void report(Location::DiagKind kind, std::string_view msg,
+				llvm::SourceMgr* src_mgr) const;
 
 	//void report_location() const;
 
@@ -82,6 +87,5 @@ private:
 	{                                                                          \
 		return ast->get_kind() == ast_enum;                                    \
 	}
-
 
 }	//namespace toycc

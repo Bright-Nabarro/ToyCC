@@ -79,7 +79,7 @@ void CodeGenVisitor::handle(const FuncDef& node)
 		llvm::Function::Create(func_type, llvm::GlobalValue::ExternalLinkage,
 							   func_name, m_module.get());
 
-	handle(node.get_block(), func, "entry");
+	create_basic_block(node.get_block(), func, "entry");
 
 	D_END;
 }
@@ -154,7 +154,7 @@ auto CodeGenVisitor::handle(const ParamList& node) -> std::vector<llvm::Type*>
 	return type_list;
 }
 
-auto CodeGenVisitor::handle(const Block& node, llvm::Function* func,
+auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
 							std::string_view block_name) -> llvm::BasicBlock*
 {
 	D_BEGIN;
@@ -170,6 +170,12 @@ auto CodeGenVisitor::handle(const Block& node, llvm::Function* func,
 
 	D_END;
 	return basic_block;
+}
+
+void CodeGenVisitor::handle(const Block& node, LocalSymbolTable& upper_table)
+{
+	LocalSymbolTable table { upper_table };
+	handle(node.get_block_item_list(), table);
 }
 
 void CodeGenVisitor::handle(const BlockItemList& node, LocalSymbolTable& table)
@@ -196,10 +202,75 @@ void CodeGenVisitor::handle(const BlockItem& node, LocalSymbolTable& table)
 void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	auto value = handle(node.get_expr(), table);
-	assert(value != nullptr);
+	switch (node.get_type())
+	{
+	case Stmt::assign:
+	{
+		auto left_entry = handle(node.get_lval(), table);
+		llvm::Value* right_value = handle(node.get_expr(), table);
+
+		if (left_entry->is_eval) [[unlikely]]
+		{
+			report_in_ast(node, Location::DiagKind::dk_error,
+						  "An eval value cannot be assigned");
+			break;
+		}
+
+		if (left_entry == nullptr) [[unlikely]]
+		{
+			m_logger->info("User Error occured in Stmt::assign left value");
+			break;
+		}
+		if (right_value == nullptr) [[unlikely]]
+		{
+			m_logger->info("User Error occured in Stmt::assign right value");
+			break;
+		}
+
+		m_builder.CreateStore(right_value, left_entry->alloca);
+		
+		break;
+	}
+	case Stmt::expression:
+	{
+		if (!node.has_expr())
+		{
+			m_logger->debug("Empty Stmt expression");
+			break;
+		}
+
+		auto value = handle(node.get_expr(), table);
+		if (value == nullptr)
+		{
+			m_logger->info("User Error occured in Stmt::expression");
+		}
+		break;
+	}
+	case Stmt::block:
+	{
+		handle(node.get_block(), table);
+		break;
+	}
+	case Stmt::func_return:
+	{
+		if (!node.has_expr())
+		{
+			m_logger->debug("Empty return statement");
+			m_builder.CreateRetVoid();
+			break;
+		}
+		auto value = handle(node.get_expr(), table);
+		if (value == nullptr)
+		{
+			m_logger->info("User Error occured in Stmt::func_return");
+		}
+		m_builder.CreateRet(value);
+		break;
+	}
+	default:
+		assert(false && "Unkown StmtType");
+	}
 	
-	m_builder.CreateRet(value);
 	D_END;
 }
 
@@ -225,7 +296,18 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 	}
 	else if (node.has_ident())
 	{
-		result = handle(node.get_lval(), table);
+		auto entry = handle(node.get_lval(), table);
+
+		if (entry == nullptr)
+		{
+			m_logger->info("User Error Occured in LVal");
+		}
+		else
+		{
+			result = entry->is_eval ?
+				entry->value :
+				m_builder.CreateLoad(entry->alloca->getType(), entry->alloca);
+		}
 	}
 	else if (node.has_number())
 	{
@@ -234,7 +316,7 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 	
 	if (result == nullptr)
 	{
-		node.report(Location::dk_error, "Error Occurs in PrimaryExpr");
+		m_logger->info("User Error Occured in PrimaryExpr");
 	}
 
 	D_END;
@@ -278,25 +360,30 @@ auto CodeGenVisitor::handle(const Number& node) -> llvm::Value*
 void CodeGenVisitor::handle(const Decl& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	handle(node.get_const_decl(), table);
+
+	if (node.has_const_decl())
+		handle(node.get_const_decl(), table);
+	else if (node.has_var_decl())
+		handle(node.get_var_decl(), table);
+	else
+		assert(false && "Unkown type in Decl");
+
 	D_END;
 }
 
-auto CodeGenVisitor::handle(const ConstDecl& node, LocalSymbolTable& table)
-	-> std::vector<llvm::Value*>
+void CodeGenVisitor::handle(const ConstDecl& node, LocalSymbolTable& table)
 {
 	D_BEGIN;
-	llvm::Type* type = handle(node.get_scalar_type());
-	auto first_value = handle(node.get_first_const_def(), type, table);
-	auto value_list = handle(node.get_const_def_list(), type, table);
-	value_list.insert(value_list.begin(), first_value);
-	D_END;
 
-	return value_list;
+	llvm::Type* type = handle(node.get_scalar_type());
+	handle(node.get_first_const_def(), type, table);
+	handle(node.get_const_def_list(), type, table);
+
+	D_END;
 }
 
-auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
-							LocalSymbolTable& table) -> llvm::Value*
+void CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
+							LocalSymbolTable& table)
 {
 	D_BEGIN;
 
@@ -310,49 +397,30 @@ auto CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
 	
 	auto left_type = report_conversion_result(ret, node);
 	if (left_type == nullptr)
-		return nullptr;
-	
-	//// 创建一个新的局部变量，分配内存
-	//llvm::AllocaInst* alloca_inst =
-	//	new llvm::AllocaInst(type, 0, name_str, m_builder.GetInsertBlock());
-
-	//// 创建一个赋值指令，将右侧值存储到分配的内存中
-	//m_builder.CreateStore(right_value, alloca_inst);
-
-	//// 生成一个指向新分配内存的加载指令
-	//llvm::Value* left_value = m_builder.CreateLoad(left_type, alloca_inst);
+		return;
 	
 	llvm::Value* left_value = right_value;
 	left_value->mutateType(left_type);
 
 	if (!table.insert(name_str, left_value))
 	{
-		node.report(Location::dk_error,
+		report_in_ast(node, Location::dk_error,
 				std::format("Variable {} has been defined", name_str));
-		return nullptr;
+		return;
 	}
 	
 	D_END;
-
-	return left_value;
 }
 
-auto CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type,
+void CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type,
 							LocalSymbolTable& table)
-	-> std::vector<llvm::Value*>
 {
 	D_BEGIN;
-	std::vector<llvm::Value*> result;
-	result.resize(node.size());
-
 	for (const auto& const_def_ptr : node )
 	{
-		result.push_back(handle(*const_def_ptr, type, table));	
+		handle(*const_def_ptr, type, table);
 	}
-
 	D_END;
-
-	return result;
 }
 
 auto CodeGenVisitor::handle(const ConstInitVal& node, LocalSymbolTable& table)
@@ -364,7 +432,8 @@ auto CodeGenVisitor::handle(const ConstInitVal& node, LocalSymbolTable& table)
 	return ret;
 }
 
-auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table) -> llvm::Value*
+auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table)
+	-> llvm::Value*
 {
 	D_BEGIN;
 	auto result = handle(node.get_expr(), table);
@@ -374,30 +443,29 @@ auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table) -> l
 }
 
 auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
-	-> llvm::Value*
+	-> std::shared_ptr<SymbolEntry>
 {
 	D_BEGIN;
 	auto name = handle(node.get_id());
-	auto value = table.lookup(name);
-	if (value == std::nullopt)
+	auto entry = table.lookup(name);
+	if (entry == nullptr)
 	{
-		node.report(Location::dk_error,
+		report_in_ast(node, Location::dk_error,
 					std::format("Variable {} not defined", name));
 		return nullptr;
 	}
-	assert(value != nullptr);
 
 	D_END;
 	
-	return *value;
+	return entry;
 }
 
 auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 	-> llvm::Value*
 {
 	m_logger->debug("UnaryOp[{}] Begin", op.get_type_str());
-	llvm::Type* type = operand->getType();
 	llvm::Value* result = nullptr;
+	llvm::Type* type = operand->getType();
 
 	if (!type->isIntegerTy() && !type->isFloatingPointTy())
 	{
@@ -405,7 +473,7 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 		return nullptr;
 	}
 
-	switch(op.get_type())
+	switch (op.get_type())
 	{
 	case UnaryOp::op_add:
 		result = operand;
@@ -417,7 +485,8 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 			result = m_builder.CreateFNeg(operand);
 		break;
 	/// c语言not操作将操作数转换为int类型
-	case UnaryOp::op_not: {
+	case UnaryOp::op_not:
+	{
 		llvm::Value* zero = llvm::ConstantInt::get(type, 0);
 		llvm::Value* is_nonzero = nullptr;
 		if (type->isIntegerTy())
@@ -428,14 +497,15 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 		{
 			is_nonzero = m_builder.CreateFCmpUNE(operand, zero);
 		}
-		llvm::Value* int_value = m_builder.CreateZExt(is_nonzero, m_type_mgr->get_signed_int());
+		llvm::Value* int_value =
+			m_builder.CreateZExt(is_nonzero, m_type_mgr->get_signed_int());
 
 		result = m_builder.CreateNot(int_value);
 		break;
 	}
 	default:
 		m_logger->error("Unkown operation: {}, category: {}",
-				  static_cast<int>(op.get_type()), op.get_type_str());
+						static_cast<int>(op.get_type()), op.get_type_str());
 		result = nullptr;
 	}
 
@@ -492,10 +562,10 @@ auto CodeGenVisitor::report_conversion_result(const ConversionResult& result,
 	case ConversionStatus::success:
 		return result.result_type;
 	case ConversionStatus::warning:
-		node.report(Location::dk_warning, result.ec.message());
+		report_in_ast(node, Location::dk_warning, result.ec.message());
 		return result.result_type;
 	case ConversionStatus::failure:
-		node.report(Location::dk_warning, result.ec.message());
+		report_in_ast(node, Location::dk_warning, result.ec.message());
 		return nullptr;
 	default:
 		assert(false);
@@ -567,6 +637,75 @@ auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 	return result;
 }
 
+void CodeGenVisitor::handle(const VarDecl& node, LocalSymbolTable& table)
+{
+	D_BEGIN;
+
+	auto* type = handle(node.get_scalar_type());
+	handle(node.get_var_def(), type, table);
+	handle(node.get_var_def_list(), type, table);
+
+	D_END;
+}
+
+void CodeGenVisitor::handle(const VarDef& node, llvm::Type* type,
+							LocalSymbolTable& table)
+{
+	D_BEGIN;
+
+	auto name_str = handle(node.get_ident());
+
+	// 创建一个新的局部变量，分配内存
+	llvm::AllocaInst* alloca_inst =
+		new llvm::AllocaInst(type, 0, name_str, m_builder.GetInsertBlock());
+
+	if (node.is_initialized())
+	{
+
+		ConversionResult cvt_result;
+		auto right_value = handle(node.get_init_val(), table);
+		// 判断隐式类型转换是否合法
+		cvt_result =
+			m_cvt_helper->value_conversion(type, right_value->getType());
+		auto left_type = report_conversion_result(cvt_result, node);
+		if (left_type == nullptr)
+			return;
+
+		m_builder.CreateStore(right_value, alloca_inst);
+	}
+	// 在符号表中添加对应条目
+	table.insert(name_str, alloca_inst);
+
+	D_END;
+}
+
+void CodeGenVisitor::handle(const VarDefList& node, llvm::Type* type,
+							LocalSymbolTable& table)
+{
+	D_BEGIN;
+	for (const auto& ptr : node)
+	{
+		handle(*ptr, type, table);
+	}
+
+	D_END;
+}
+
+auto CodeGenVisitor::handle(const InitVal& node, LocalSymbolTable& table)
+	-> llvm::Value*
+{
+	D_BEGIN;
+	auto result = handle(node.get_expr(), table);
+	D_END;
+
+	return result;
+}
+
+void CodeGenVisitor::report_in_ast(const BaseAST& node, Location::DiagKind kind,
+								   std::string_view msg)
+{
+	node.report(kind, msg, &m_src_mgr);
+}
 
 }	//namespace toycc
 

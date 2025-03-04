@@ -1,3 +1,4 @@
+#include <cassert>
 #include "base_ast.hpp"
 
 namespace toycc
@@ -27,11 +28,15 @@ auto BaseAST::get_kind_str() const -> const char*
 #include "ast.def"
 
 #undef AST_KIND
+	default:
+		assert(false && "Unkown AST kind");
 	}
 }
 
-void BaseAST::report(Location::DiagKind kind, std::string_view msg) const
+void BaseAST::report(Location::DiagKind kind, std::string_view msg,
+				llvm::SourceMgr* src_mgr) const
 {
+	m_location->set_src_mgr(src_mgr);
 	m_location->report(kind, msg);
 }
 

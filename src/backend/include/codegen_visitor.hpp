@@ -43,8 +43,10 @@ private:
 
 	auto handle(const ParamList& node) -> std::vector<llvm::Type*>;
 
-	auto handle(const Block& node, llvm::Function* func,
+	auto create_basic_block(const Block& node, llvm::Function* func,
 				std::string_view block_name) -> llvm::BasicBlock*;
+	// 不创建新块的情况
+	void handle(const Block& node, LocalSymbolTable& upper_table);
 
 	void handle(const BlockItemList& node, LocalSymbolTable& table);
 	void handle(const BlockItem& node, LocalSymbolTable& table);
@@ -55,8 +57,7 @@ private:
 	auto handle(const Ident& node) -> std::string_view;
 
 	void handle(const Decl& node, LocalSymbolTable& table);
-	auto handle(const ConstDecl& node, LocalSymbolTable& table)
-		-> std::vector<llvm::Value*>; 
+	void handle(const ConstDecl& node, LocalSymbolTable& table);
 
 	void handle(const Stmt& node, LocalSymbolTable& table);
 	auto handle(const Expr& expr, LocalSymbolTable& table) -> llvm::Value*;
@@ -64,15 +65,22 @@ private:
 		-> llvm::Value*;
 	auto handle(const UnaryExpr& node, LocalSymbolTable& table) -> llvm::Value*;
 
-	auto handle(const ConstDef& node, llvm::Type* type, LocalSymbolTable& table)
-		-> llvm::Value*;
-	auto handle(const ConstDefList& node, llvm::Type* type,
-				LocalSymbolTable& table) -> std::vector<llvm::Value*>;
+	void handle(const ConstDef& node, llvm::Type* type, LocalSymbolTable& table);
+	void handle(const ConstDefList& node, llvm::Type* type, LocalSymbolTable& table);
 	auto handle(const ConstInitVal& node, LocalSymbolTable& table)
 		-> llvm::Value*;
 	auto handle(const ConstExpr& node, LocalSymbolTable& table) -> llvm::Value*;
-	/// @return 如果无法查找到返回nullptr
-	auto handle(const LVal& node, LocalSymbolTable& table) -> llvm::Value*;
+	/**
+	 * @note 调用此函数后，左值创建一个读取指令，返回右值，所以不支持自增和自减运算符
+	 * @return 如果无法查找到返回nullptr
+	 */
+	auto handle(const LVal& node, LocalSymbolTable& table)
+		-> std::shared_ptr<SymbolEntry>;
+	
+	void handle(const VarDecl& node, LocalSymbolTable& table);
+	void handle(const VarDef& node, llvm::Type* type, LocalSymbolTable& table);
+	void handle(const VarDefList& node, llvm::Type* type, LocalSymbolTable& table);
+	auto handle(const InitVal& node, LocalSymbolTable& table) -> llvm::Value*;
 
 	/// @note 在上层会传入所有的BinaryExpr, 无需在实现文件中显式实例化声明
 	template <typename TBinaryExpr>
@@ -88,6 +96,8 @@ private:
 
 	auto report_conversion_result(const ConversionResult& result,
 								  const BaseAST& node) -> llvm::Type*;
+	void report_in_ast(const BaseAST& node, Location::DiagKind kind,
+					   std::string_view msg);
 
 private:
 	std::unique_ptr<llvm::Module> m_module;

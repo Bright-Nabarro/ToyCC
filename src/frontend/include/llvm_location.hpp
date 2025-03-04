@@ -63,7 +63,7 @@ public:
 	void update(std::size_t len);
 
 	/// @note 需要在report前调用
-	void set_src_mgr(const llvm::SourceMgr* src_mgr) const;
+	void set_src_mgr(const llvm::SourceMgr* src_mgr) const override;
 
 	/// @note 与set_src_mgr类似
 	void set_logger(std::shared_ptr<spdlog::async_logger> logger);

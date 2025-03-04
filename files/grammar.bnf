@@ -15,17 +15,20 @@ Param       ::= ScalarType Ident;
 
 
 # 声明
-	[返回类型可能需要修改] Decl			::=  ConstDecl; 
+	[新增文法逻辑, 返回类型可能需要修改] Decl			::=  ConstDecl | VarDecl; 
 ## ConstDefList有逗号分隔，无法将ConstDef省略
 ConstDecl 		::= "eval" ScalarType ConstDef ConstDefList ";";
 #定义
 ConstDef		::= Ident "=" ConstInitVal; 	# 赋值的逻辑在其handler中完成
 	[返回类型可能需要修改] ConstDefList 	::= /* empty */ | ConstDefList ',' ConstDef
-	[未开始] ConstInitVal 	::= ConstExpr;
-ConstExpr		::= Expr;
+ConstInitVal 	::= ConstExpr;
+VarDecl 		::= ScalarType VarDef VarDefList ";";
+VarDef 			::= Ident | Ident "=" InitVal;
+VarDefList		::= /* empty */ | VarDefList ',' VarDef ;
+InitVal 		::= Expr;
 
 # 块 (暂时不支持嵌套块)
-	[没有作用域处理] Block       	::= "{" BlockItemList "}";
+Block       	::= "{" BlockItemList "}";
 BlockItemList 	::= /* empty */ | BlockItem BlockItemList
 ## 每个BlockItem 就是分号分隔的语句
 BlockItem		::= Decl | Stmt;
@@ -33,8 +36,12 @@ BlockItem		::= Decl | Stmt;
 LVal			::= Ident;
 
 # 语句
-	[未处理多返回值的错误情况, 符号表查找逻辑代实现] Stmt        	::= "return" Expr ";";
+Stmt        	::= LVal "=" Expr								// assign
+				| Expr ";" | /*empty*/ ";"						// expression
+				| Block											// block
+				| "return" Expr ";" | "return" /*empty*/ ";" ;	//return
 
+ConstExpr		::= Expr;
 Expr        	::= LOrExpr;
 
 # 以下优先级从高到低
