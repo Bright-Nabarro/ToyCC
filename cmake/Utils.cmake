@@ -4,9 +4,9 @@ function(ChgExeOutputDir target)
 	)
 endfunction()
 
-function(GetExePathName output_var)
-	set($output_var, "${CMAKE_SOURCE_DIR}/bin/${CMAKE_PROJECT_NAME}")
-endfunction()
+macro(GetExePathName output_var)
+	set(${output_var} "${CMAKE_SOURCE_DIR}/bin/${CMAKE_PROJECT_NAME}")
+endmacro()
 
 macro(AddLLVMTrgLibrary name libtype)
 	if (TARGET ${name})

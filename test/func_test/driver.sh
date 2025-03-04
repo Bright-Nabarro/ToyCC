@@ -5,7 +5,12 @@ if [[ ! $1 =~ .*toycc$ ]]; then
 	exit 1
 fi
 
-if [[ ! $2 =~ .*\.c$ ]]; then
+if [[ -z $2 ]]; then
+	echo "Missing directory"
+	exit 1
+fi
+
+if [[ ! $3 =~ .*\.c$ ]]; then
 	echo "Missing input file"
 	exit 1;
 fi
@@ -17,14 +22,16 @@ function exit_if_failure {
 	fi
 }
 
-mkdir -p bin
+output_dir=${2}/bin
+program=$output_dir/$2.out
+mkdir -p $output_dir
 
-$1 $2 -o bin/cp.o --filetype=obj
+$1 $3 -o ${output_dir}/cp.o --filetype=obj
 exit_if_failure
 
-gcc main.c bin/cp.o -o bin/a.out
+gcc $2/main.c ${output_dir}/cp.o -o $program
 exit_if_failure
 
-./a.out
+$program
 exit_if_failure
 

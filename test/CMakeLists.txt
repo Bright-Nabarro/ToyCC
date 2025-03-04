@@ -4,3 +4,4 @@ if (NOT GTest_FOUND)
 endif()
 
 add_subdirectory("unit_test")
+add_subdirectory("func_test")

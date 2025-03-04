@@ -43,6 +43,7 @@ Stmt        	::= LVal "=" Expr								// assign
 				| "return" /*empty*/ ";" 						// return
 				| "if" "(" Expr ")" Stmt						// if_stmt
 				| "if" "(" Expr ")" Stmt "else" Stmt			// if_stmt
+				| "while" "(" Expr ")" Stmt						// while_stmt
 				;
 ConstExpr		::= Expr;
 Expr        	::= LOrExpr;

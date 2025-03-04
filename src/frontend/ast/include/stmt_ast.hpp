@@ -22,7 +22,8 @@ public:
 		expression,
 		block,
 		func_return,
-		if_stmt,	// stmt的存储以第一个if语句为开始，按顺序存储
+		if_stmt,	// stmt的存储顺序以第一个if语句为开始，按顺序存储
+		while_stmt,
 	};
 	Stmt(std::unique_ptr<Location> location, StmtType type);
 

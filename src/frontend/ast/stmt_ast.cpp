@@ -41,12 +41,12 @@ Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
 }
 
 Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
-	std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> if_stmt)
+	std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> stmt)
 	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
 	  m_expr{std::move(expr)}, m_block{}, m_stmts {}
 {
-	assert(type == StmtType::if_stmt);
-	m_stmts.push_back(std::move(if_stmt));
+	assert(type == StmtType::if_stmt || type == StmtType::while_stmt);
+	m_stmts.push_back(std::move(stmt));
 }
 
 

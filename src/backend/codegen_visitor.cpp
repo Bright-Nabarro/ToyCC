@@ -309,6 +309,31 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 		m_builder.SetInsertPoint(if_end);
 		break;
 	}
+	case Stmt::while_stmt:
+	{
+		llvm::BasicBlock* cond = llvm::BasicBlock::Create(
+			m_module->getContext(), "", table.get_func());
+		llvm::BasicBlock* body = llvm::BasicBlock::Create(
+			m_module->getContext(), "", table.get_func());
+		llvm::BasicBlock* end = llvm::BasicBlock::Create(
+			m_module->getContext(), "", table.get_func());
+
+		m_builder.CreateBr(cond);
+		// 条件判断 begin
+		m_builder.SetInsertPoint(cond);
+		auto value = handle(node.get_expr(), table);
+		m_builder.CreateCondBr(value, body, end);
+		// 条件判断 end
+		// 循环体
+		m_builder.SetInsertPoint(body);
+		const auto& stmt_body = node.get_stmts();
+		assert(stmt_body.size() == 1);
+		handle(*stmt_body.front(), table);
+		m_builder.CreateBr(cond);
+		// 循环体 end
+		m_builder.SetInsertPoint(end);
+		break;
+	}
 	default:
 		m_logger->error("Unkown StmtType");
 		std::abort();

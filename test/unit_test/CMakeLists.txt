@@ -9,5 +9,11 @@ target_link_libraries(unit_test PRIVATE
 	#	backend_test
 )
 
+add_test(
+	NAME unit_test
+	COMMAND bin/unit_test
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
 ChgExeOutputDir(unit_test)
 

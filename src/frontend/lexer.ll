@@ -52,7 +52,7 @@ UnsignedInt		(unsigned\s+int)|(unsigned)
 "eval"			LOC_UPDATE_RET_ACTION(loc, yy::parser::make_KW_EVAL(loc));
 "if"			LOC_UPDATE_RET_ACTION(loc, yy::parser::make_KW_IF(loc));
 "else"			LOC_UPDATE_RET_ACTION(loc, yy::parser::make_KW_ELSE(loc));
-
+"while"			LOC_UPDATE_RET_ACTION(loc, yy::parser::make_KW_WHILE(loc));
 
 {Ident}			LOC_UPDATE_RET_ACTION(loc, yy::parser::make_IDENT(std::string{yytext}, loc));
 {Number}		LOC_UPDATE_RET_ACTION(loc, yy::parser::make_INT_LITERAL(std::atoi(yytext), loc));
