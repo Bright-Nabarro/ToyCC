@@ -4,6 +4,10 @@ function(ChgExeOutputDir target)
 	)
 endfunction()
 
+function(GetExePathName output_var)
+	set($output_var, "${CMAKE_SOURCE_DIR}/bin/${CMAKE_PROJECT_NAME}")
+endfunction()
+
 macro(AddLLVMTrgLibrary name libtype)
 	if (TARGET ${name})
 		message(WARNING "Target ${name} already exists. Skipping AddTrgLibrary")
