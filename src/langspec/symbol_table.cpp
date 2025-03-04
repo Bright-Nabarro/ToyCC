@@ -4,8 +4,15 @@ namespace toycc
 {
 
 LocalSymbolTable::LocalSymbolTable(LocalSymbolTable* upper_table):
-	m_upper { upper_table }
-{}
+	m_upper { upper_table }, m_func { upper_table->m_func }
+{
+	assert(upper_table->m_func != nullptr);
+}
+
+LocalSymbolTable::LocalSymbolTable(llvm::Function* func):
+	m_upper { nullptr }, m_func { func }
+{
+}
 
 auto LocalSymbolTable::insert(std::string_view name, llvm::Value* value) -> bool
 {

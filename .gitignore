@@ -1,7 +1,8 @@
-bin/
+bin/*
 .cache/
 compile_commands.json
 *.out
 build/
 output/
 temp/
+*.o

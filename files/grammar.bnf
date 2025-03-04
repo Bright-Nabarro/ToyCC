@@ -39,8 +39,12 @@ LVal			::= Ident;
 Stmt        	::= LVal "=" Expr								// assign
 				| Expr ";" | /*empty*/ ";"						// expression
 				| Block											// block
-				| "return" Expr ";" | "return" /*empty*/ ";" ;	//return
-
+				| "return" Expr ";" 							// return
+				| "return" /*empty*/ ";" 						// return
+				| "if" "(" Expr ")" Stmt						// if_stmt
+				| "if" "(" Expr ")" Stmt "else" Stmt			// if_stmt
+				| "while" "(" Expr ")" Stmt						// while_stmt
+				;
 ConstExpr		::= Expr;
 Expr        	::= LOrExpr;
 

@@ -133,11 +133,13 @@ private:
 	Variant m_value;
 };
 
+
 class BinaryExprBase: public BaseExpr
 {
 public:
 	using BaseExpr::BaseExpr;
 };
+
 
 template<typename SelfExpr, typename HigherExpr, typename Op>
 	requires std::is_base_of_v<::toycc::Operator, Op>
@@ -177,6 +179,7 @@ public:
 private:
 	Variant m_value;
 };
+
 
 #define DEFINE_BINARY_EXPR_CLASS(expr_kind, expr_name, operation, higher_expr) \
 	class expr_name : public BinaryExpr<expr_name, higher_expr, operation>     \

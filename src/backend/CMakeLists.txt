@@ -1,15 +1,13 @@
 file(GLOB src "*.cpp")
 
-set(trg ${CMAKE_PROJECT_NAME})
 
-AddLLVMTrgExe(${trg} ${src})
-ChgExeOutputDir(${trg})
+AddLLVMTrgLibrary(backend OBJECT ${src})
 
-target_link_libraries(${trg} PRIVATE
+target_link_libraries(backend PUBLIC
 	front spdlog::spdlog semantix
 )
 
-target_include_directories(${trg} PRIVATE
+target_include_directories(backend PUBLIC
 	"include"
 )
 

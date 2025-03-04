@@ -163,7 +163,7 @@ auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
 		llvm::BasicBlock::Create(m_module->getContext(), block_name.data(), func);
 
 	// 局部符号表
-	LocalSymbolTable table;
+	LocalSymbolTable table(func);
 
 	m_builder.SetInsertPoint(basic_block);
 	handle(node.get_block_item_list(), table);
@@ -267,8 +267,76 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 		m_builder.CreateRet(value);
 		break;
 	}
+	case Stmt::if_stmt:
+	{
+		llvm::BasicBlock* if_then = llvm::BasicBlock::Create(
+			m_module->getContext(), "", table.get_func());
+		llvm::BasicBlock* if_end = llvm::BasicBlock::Create(
+			m_module->getContext(), "", table.get_func());
+
+		auto cmp = handle(node.get_expr(), table);
+		if (!m_cvt_helper->convert_to_bool(cmp->getType()))
+		{
+			report_in_ast(node, Location::DiagKind::dk_error, "Cannot convert to bool");
+			break;
+		}
+
+		const auto& stmts = node.get_stmts();
+
+		if (stmts.size() == 1) // if 语句
+		{
+			m_builder.CreateCondBr(cmp, if_then, if_end);
+			m_builder.SetInsertPoint(if_then);
+			handle(*stmts.front(), table);
+			m_builder.CreateBr(if_end);
+		}
+		else if(stmts.size() == 2) // if else 语句
+		{
+			llvm::BasicBlock* if_else = llvm::BasicBlock::Create(
+				m_module->getContext(), "", table.get_func());
+			m_builder.CreateCondBr(cmp, if_then, if_else);
+			m_builder.SetInsertPoint(if_then);
+			handle(*stmts[0], table);
+			m_builder.SetInsertPoint(if_else);
+			handle(*stmts[1], table);
+			m_builder.CreateBr(if_end);
+		}
+		else
+		{
+			assert(false);
+		}
+
+		m_builder.SetInsertPoint(if_end);
+		break;
+	}
+	case Stmt::while_stmt:
+	{
+		llvm::BasicBlock* cond = llvm::BasicBlock::Create(
+			m_module->getContext(), "", table.get_func());
+		llvm::BasicBlock* body = llvm::BasicBlock::Create(
+			m_module->getContext(), "", table.get_func());
+		llvm::BasicBlock* end = llvm::BasicBlock::Create(
+			m_module->getContext(), "", table.get_func());
+
+		m_builder.CreateBr(cond);
+		// 条件判断 begin
+		m_builder.SetInsertPoint(cond);
+		auto value = handle(node.get_expr(), table);
+		m_builder.CreateCondBr(value, body, end);
+		// 条件判断 end
+		// 循环体
+		m_builder.SetInsertPoint(body);
+		const auto& stmt_body = node.get_stmts();
+		assert(stmt_body.size() == 1);
+		handle(*stmt_body.front(), table);
+		m_builder.CreateBr(cond);
+		// 循环体 end
+		m_builder.SetInsertPoint(end);
+		break;
+	}
 	default:
-		assert(false && "Unkown StmtType");
+		m_logger->error("Unkown StmtType");
+		std::abort();
 	}
 	
 	D_END;
@@ -306,7 +374,7 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 		{
 			result = entry->is_eval ?
 				entry->value :
-				m_builder.CreateLoad(entry->alloca->getType(), entry->alloca);
+				m_builder.CreateLoad(entry->alloca->getAllocatedType(), entry->alloca);
 		}
 	}
 	else if (node.has_number())
@@ -578,6 +646,7 @@ auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 	m_logger->debug("{} [{}] Begin:", op.get_kind_str(), op.get_type_str());
 
 	llvm::Value* result = nullptr;
+	assert(left->getType() == right->getType());
 	
 	switch(op.get_type())
 	{

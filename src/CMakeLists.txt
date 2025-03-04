@@ -11,4 +11,5 @@ include(AddLLVM)
 add_subdirectory(frontend)
 add_subdirectory(langspec)
 add_subdirectory(backend)
+add_subdirectory(main)
 
