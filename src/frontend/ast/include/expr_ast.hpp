@@ -37,6 +37,11 @@ private:
 };
 
 
+class ExprList: public BaseAST
+{
+};
+
+
 /**
  * ConstInitVal 	::= ConstExpr;
  */
@@ -102,19 +107,31 @@ private:
 };
 
 
+class PassingParams: public BaseAST
+{
+public:
+	TOYCC_AST_FILL_CLASSOF(ast_passing_params);
+private:
+	std::unique_ptr<Expr> m_expr;
+	
+};
+
+
 /**
  * UnaryExpr ::= PrimaryExpr | UnaryOp UnaryExpr;
  */
 class UnaryExpr: public BaseExpr
 {
 public:
-	using PrmExpPtr = std::unique_ptr<PrimaryExpr>;
-	using PackPtr = std::pair<std::unique_ptr<UnaryOp>, std::unique_ptr<UnaryExpr>>;
-	using Variant = std::variant<PrmExpPtr, PackPtr>;
-
-	TOYCC_AST_FILL_CLASSOF(ast_unary_expr);
-
-	UnaryExpr(std::unique_ptr<Location> location, PrmExpPtr primary_expr);
+	enum UnaryType
+	{
+		primary_expr,
+		unary_op,
+		call,
+		call_with_params,
+	};
+	
+	UnaryExpr(std::unique_ptr<Location> location, std::unique_ptr<PrimaryExpr> primary_expr);
 	UnaryExpr(std::unique_ptr<Location> location, std::unique_ptr<UnaryOp> unary_op,
 			std::unique_ptr<UnaryExpr> unary_expr);
 
@@ -130,7 +147,12 @@ public:
 	auto get_unary_expr() const -> const UnaryExpr&;
 
 private:
-	Variant m_value;
+	UnaryType m_type;
+	std::unique_ptr<PrimaryExpr> m_primary_expr;
+	std::unique_ptr<UnaryOp> m_unary_op;
+	std::unique_ptr<UnaryExpr> m_unary_expr;
+	std::unique_ptr<Ident> m_ident;
+	std::unique_ptr<PassingParams> m_passing_params;
 };
 
 

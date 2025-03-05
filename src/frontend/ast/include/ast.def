@@ -5,6 +5,7 @@
 AST_KIND(ast_number, "Number")
 AST_KIND(ast_ident, "Identifier")
 
+AST_KIND(ast_passing_params, "Passing Params")
 // Exprations
 AST_KIND(ast_expr, "Expression")
 AST_KIND(ast_const_expr, "Constant Expression")
