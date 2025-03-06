@@ -64,7 +64,11 @@ private:
 	auto handle(const PrimaryExpr& node, LocalSymbolTable& table)
 		-> llvm::Value*;
 	auto handle(const UnaryExpr& node, LocalSymbolTable& table) -> llvm::Value*;
-
+	auto handle(const PassingParams& node, LocalSymbolTable& table)
+		-> llvm::Value*;
+	auto handle(const ExprList& node, LocalSymbolTable& table)
+		-> llvm::Value*;
+	
 	void handle(const ConstDef& node, llvm::Type* type, LocalSymbolTable& table);
 	void handle(const ConstDefList& node, llvm::Type* type, LocalSymbolTable& table);
 	auto handle(const ConstInitVal& node, LocalSymbolTable& table)

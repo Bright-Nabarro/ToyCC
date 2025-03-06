@@ -25,6 +25,15 @@ struct SymbolEntry
 	};
 };
 
+class GlobalSymbolTable final
+{
+public:
+	auto find(std::string_view name) -> llvm::Value*;
+	auto insert(std::string_view name, llvm::Value* value) -> bool;
+private:
+	std::unordered_map<std::string_view, llvm::Value*> m_table;
+};
+
 class LocalSymbolTable final
 {
 public:

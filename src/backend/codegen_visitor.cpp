@@ -397,19 +397,25 @@ auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 	D_BEGIN;
 
 	llvm::Value* result = nullptr;
-	if (node.has_unary_expr())
+	switch(node.get_unary_type())
 	{
+	case UnaryExpr::primary_expr:
+		result = handle(node.get_primary_expr(), table);
+		break;
+	case UnaryExpr::unary_op:
 		result = handle(node.get_unary_expr(), table);
 		result = unary_operate(node.get_unary_op(), result);
+		break;
+	case UnaryExpr::call_with_params: 
+	case UnaryExpr::call: {
+		auto func_name = handle(node.get_ident());	
+		
+		break;
 	}
-	else if (node.has_primary_expr())
-	{
-		result = handle(node.get_primary_expr(), table);
+	default:
+		assert(false && "UnaryExpr has an unkown type");
 	}
-	else
-	{
-		assert(false && "UnaryExpr has an unkown type in its variant");
-	}
+
 	D_END;
 
 	return result;

@@ -3,6 +3,20 @@
 namespace toycc
 {
 
+auto GlobalSymbolTable::find(std::string_view name) -> llvm::Value*
+{
+	auto itr = m_table.find(name);
+	if (itr == m_table.end())
+		return nullptr;
+	return itr->second;
+}
+
+auto GlobalSymbolTable::insert(std::string_view name, llvm::Value* n) -> bool
+{
+	auto [ _, success ] = m_table.emplace(name, n);
+	return success;
+}
+
 LocalSymbolTable::LocalSymbolTable(LocalSymbolTable* upper_table):
 	m_upper { upper_table }, m_func { upper_table->m_func }
 {

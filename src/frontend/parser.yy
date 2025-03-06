@@ -99,7 +99,9 @@ namespace toycc { class Driver; }
 %nterm <std::unique_ptr<toycc::ParamList>>		ParamList
 %nterm <std::unique_ptr<toycc::FuncDef>>		FuncDef
 // expr
+%nterm <std::unique_ptr<toycc::PassingParams>	PassingParams
 %nterm <std::unique_ptr<toycc::Expr>>			Expr
+%nterm <std::unique_ptr<toycc::ExprList>>		ExprList
 %nterm <std::unique_ptr<toycc::UnaryExpr>>		UnaryExpr
 %nterm <std::unique_ptr<toycc::PrimaryExpr>>	PrimaryExpr
 %nterm <std::unique_ptr<toycc::L3Expr>> 		L3Expr
@@ -132,6 +134,11 @@ CompUnit:
 		auto comp_unit_ptr =
 			std::make_unique<toycc::CompUnit>(std::move(location), std::move($1));
 		driver.set_ast(std::move(comp_unit_ptr));
+	}
+	| CompUnit FuncDef
+	{
+		$$ = std::make_unique<toycc::CompUnit>(CONSTRUCT_LOCATION(@$),
+			std::move($1), std::move($2));
 	};
 
 FuncDef :
@@ -390,12 +397,22 @@ PrimaryExpr
 UnaryExpr
 	: PrimaryExpr {
 		assert_same_ptr(toycc::PrimaryExpr, $1);
-		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
+			UnaryExpr::primary_expr, std::move($1));
 	}
 	| UnaryOp UnaryExpr {
 		assert_same_ptr(toycc::UnaryOp, $1);
 		assert_same_ptr(toycc::UnaryExpr, $2);
-		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2));
+		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
+			UnaryExpr::unary_op, std::move($1), std::move($2));
+	}
+	| Ident "(" ")" {
+		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
+			UnaryExpr::call, std::move($1));
+	}
+	| Ident "(" PassingParams ")" {
+		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
+			UnaryExpr::call_with_params, std::move($1), std::move($3));
 	};
 
 UnaryOp

@@ -92,45 +92,80 @@ auto PrimaryExpr::get_number() const -> const Number&
 
 
 /// UnaryExpr
-UnaryExpr::UnaryExpr(std::unique_ptr<Location> location, PrmExpPtr primary_expr):
-	BaseExpr { ast_unary_expr, std::move(location) },
-	m_value { std::move(primary_expr) }
-{}
-
-UnaryExpr::UnaryExpr(std::unique_ptr<Location> location, std::unique_ptr<UnaryOp> unary_op,
-		std::unique_ptr<UnaryExpr> unary_expr):
-	BaseExpr { ast_unary_expr, std::move(location) }, 
-	m_value { PackPtr { std::move(unary_op), std::move(unary_expr) } }
-{}
-
-auto UnaryExpr::has_primary_expr() const -> bool
+UnaryExpr::UnaryExpr(std::unique_ptr<Location> location,
+		  UnaryType type,
+		  std::unique_ptr<PrimaryExpr> primary_expr):
+	BaseExpr(ast_unary_expr, std::move(location)),
+	m_type { type }, m_primary_expr { std::move(primary_expr) }
 {
-	return std::holds_alternative<PrmExpPtr>(m_value);
+	assert(m_type == UnaryType::primary_expr);
 }
 
-auto UnaryExpr::has_unary_expr() const -> bool
+UnaryExpr::UnaryExpr(std::unique_ptr<Location> location,
+		  UnaryType type,
+		  std::unique_ptr<UnaryOp> unary_op,
+		  std::unique_ptr<UnaryExpr> unary_expr):
+	BaseExpr(ast_unary_expr, std::move(location)),
+	m_type { type }, m_unary_op { std::move(unary_op) },
+	m_unary_expr { std::move(unary_expr) }
 {
-	return std::holds_alternative<PackPtr>(m_value);
+	assert(m_type == UnaryType::unary_op);
+}
+
+UnaryExpr::UnaryExpr(std::unique_ptr<Location> location,
+		  UnaryType type,
+		  std::unique_ptr<Ident> ident):
+	BaseExpr(ast_unary_expr, std::move(location)),
+	m_type { type }, m_ident { std::move(ident) }
+{
+	assert(m_type == UnaryType::call);
+}
+
+UnaryExpr::UnaryExpr(std::unique_ptr<Location> location,
+		  UnaryType type,
+		  std::unique_ptr<Ident> ident,
+		  std::unique_ptr<PassingParams> passing_params):
+	BaseExpr(ast_unary_expr, std::move(location)),
+	m_type { type }, m_ident { std::move(ident) },
+	m_passing_params { std::move(passing_params) }
+{
+	assert(m_type == UnaryType::call_with_params);
+}
+
+auto UnaryExpr::get_unary_type() const -> UnaryType
+{
+	return m_type;
 }
 
 auto UnaryExpr::get_primary_expr() const -> const PrimaryExpr&
 {
-	assert(has_primary_expr());
-	return *std::get<PrmExpPtr>(m_value);
+	assert(m_type == UnaryType::primary_expr);
+	return *m_primary_expr;
 }
 
 auto UnaryExpr::get_unary_op() const -> const UnaryOp&
 {
-	assert(has_unary_expr());
-	return *(std::get<PackPtr>(m_value).first);
+	assert(m_type == UnaryType::unary_op);
+	return *m_unary_op;
 }
 
 auto UnaryExpr::get_unary_expr() const -> const UnaryExpr&
 {
-	assert(has_unary_expr());
-	return *(std::get<PackPtr>(m_value).second);
+	assert(m_type == UnaryType::unary_op);
+	return *m_unary_expr;
 }
 
+auto UnaryExpr::get_ident() const -> const Ident&
+{
+	assert(m_type == UnaryType::call || m_type == UnaryType::call_with_params);
+	return *m_ident;
+}
+
+auto UnaryExpr::get_passing_params() const -> const PassingParams&
+{
+	assert(m_type == UnaryType::call_with_params);
+	return *m_passing_params;
+}
 
 /// BinaryExpr
 template <typename SelfExpr, typename HigherExpr, typename Op>
