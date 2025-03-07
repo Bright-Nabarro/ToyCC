@@ -30,6 +30,26 @@ Expr::Expr(std::unique_ptr<Location> location, std::unique_ptr<LowExpr> uptr)
 auto Expr::get_low_expr() const -> const LowExpr&
 { return *m_value; }
 
+/// ExprList
+ExprList::ExprList(std::unique_ptr<Location> location)
+	: BaseAST { ast_expr_list, std::move(location) },
+	m_expr_list {}
+{};
+
+ExprList::ExprList(std::unique_ptr<Location> location,
+			 std::unique_ptr<ExprList> expr_list,
+			 std::unique_ptr<Expr> expr)
+	: BaseAST { ast_expr_list, std::move(location) },
+	m_expr_list { std::move(expr_list->m_expr_list) }
+{
+	m_expr_list.push_back(std::move(expr));
+}
+
+auto ExprList::get_expr_list() const -> const Vector&
+{
+	return m_expr_list;
+}
+
 
 /// ConstExpr
 ConstExpr::ConstExpr(std::unique_ptr<Location> location, std::unique_ptr<Expr> expr):
@@ -90,6 +110,29 @@ auto PrimaryExpr::get_number() const -> const Number&
 	return *std::get<NumberPtr>(m_value);
 }
 
+
+PassingParams::PassingParams(std::unique_ptr<Location> location,
+				  std::unique_ptr<Expr> expr,
+				  std::unique_ptr<ExprList> expr_list):
+	BaseAST(ast_passing_params, std::move(location)),
+	m_expr { std::move(expr) }, m_expr_list { std::move(expr_list) }
+{
+}
+
+auto PassingParams::size() const -> std::size_t
+{
+	return m_expr_list->size() + 1;
+}
+
+auto PassingParams::get_expr() const -> const Expr&
+{
+	return *m_expr;
+}
+
+auto PassingParams::get_expr_list() const -> const ExprList&
+{
+	return *m_expr_list;
+}
 
 /// UnaryExpr
 UnaryExpr::UnaryExpr(std::unique_ptr<Location> location,

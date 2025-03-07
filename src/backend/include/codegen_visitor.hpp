@@ -65,17 +65,17 @@ private:
 		-> llvm::Value*;
 	auto handle(const UnaryExpr& node, LocalSymbolTable& table) -> llvm::Value*;
 	auto handle(const PassingParams& node, LocalSymbolTable& table)
-		-> llvm::Value*;
-	auto handle(const ExprList& node, LocalSymbolTable& table)
-		-> llvm::Value*;
-	
+		-> std::vector<llvm::Value*>;
+	/// @return false代表用户出错返回
+	auto handle(const ExprList& node, LocalSymbolTable& table,
+				std::vector<llvm::Value*>& list) -> bool;
+
 	void handle(const ConstDef& node, llvm::Type* type, LocalSymbolTable& table);
 	void handle(const ConstDefList& node, llvm::Type* type, LocalSymbolTable& table);
 	auto handle(const ConstInitVal& node, LocalSymbolTable& table)
 		-> llvm::Value*;
 	auto handle(const ConstExpr& node, LocalSymbolTable& table) -> llvm::Value*;
 	/**
-	 * @note 调用此函数后，左值创建一个读取指令，返回右值，所以不支持自增和自减运算符
 	 * @return 如果无法查找到返回nullptr
 	 */
 	auto handle(const LVal& node, LocalSymbolTable& table)
@@ -85,6 +85,7 @@ private:
 	void handle(const VarDef& node, llvm::Type* type, LocalSymbolTable& table);
 	void handle(const VarDefList& node, llvm::Type* type, LocalSymbolTable& table);
 	auto handle(const InitVal& node, LocalSymbolTable& table) -> llvm::Value*;
+
 
 	/// @note 在上层会传入所有的BinaryExpr, 无需在实现文件中显式实例化声明
 	template <typename TBinaryExpr>
@@ -112,6 +113,8 @@ private:
 	llvm::SourceMgr& m_src_mgr;
 	llvm::TargetMachine* m_target_machine;
 	std::shared_ptr<spdlog::async_logger> m_logger;
+
+	std::shared_ptr<GlobalSymbolTable> m_global_table;
 };
 
 }	//namespace toycc

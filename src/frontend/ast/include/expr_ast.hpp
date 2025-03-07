@@ -138,7 +138,9 @@ public:
 	PassingParams(std::unique_ptr<Location> location,
 				  std::unique_ptr<Expr> expr,
 				  std::unique_ptr<ExprList> expr_list);
-
+	auto size() const -> std::size_t;
+	auto get_expr() const -> const Expr&;
+	auto get_expr_list() const -> const ExprList&;
 private:
 	std::unique_ptr<Expr> m_expr;
 	std::unique_ptr<ExprList> m_expr_list;

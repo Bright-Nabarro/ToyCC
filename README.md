@@ -1,6 +1,6 @@
 # ToyCC - 基于Flex/Bison/LLVM的实验性C编译器
 
-一个用于学习编译器设计的实验型C语言编译器前端，计划支持C99子集，生成LLVM IR并编译为本地可执行文件。
+一个用于学习编译器设计的C语言编译器前端，计划支持C99子集，生成LLVM IR并编译为本地可执行文件。
 
 ### 依赖项
 - [LLVM 19](https://github.com/llvm/llvm-project)

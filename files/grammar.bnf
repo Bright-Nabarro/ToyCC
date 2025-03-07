@@ -1,5 +1,8 @@
 # 开始符
-CompUnit    ::= CompUnit FuncDef | FuncDef;
+CompUnit    ::= CompUnit Decl
+			| 	Decl
+			|	CompUnit FuncDef
+			|	FuncDef;
 
 # 函数定义与返回类型
 	[只有外部链接] FuncDef     ::= BuiltinType Ident "(" ParamList ")" Block;

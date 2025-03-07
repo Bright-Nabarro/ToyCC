@@ -9,15 +9,25 @@ namespace toycc
 
 struct SymbolEntry
 {
-	SymbolEntry(llvm::Value* value_):
-		is_eval { true }, value { value_ }
-	{}
+	enum EntryType
+	{
+		eval_value,
+		alloca_value,
+		func_value,
+	};
+
+	SymbolEntry(EntryType type_, llvm::Value* value_):
+		type { type_ }, value { value_ }
+	{
+		assert(type_ != alloca_value);
+	}
 
 	SymbolEntry(llvm::AllocaInst* alloca_):
-		is_eval { false }, alloca { alloca_ }
+		type { alloca_value }, alloca { alloca_ }
 	{}
 
-	bool is_eval;
+	
+	EntryType type;
 	union
 	{
 		llvm::Value* value;			// eval
@@ -25,14 +35,16 @@ struct SymbolEntry
 	};
 };
 
+
 class GlobalSymbolTable final
 {
 public:
-	auto find(std::string_view name) -> llvm::Value*;
-	auto insert(std::string_view name, llvm::Value* value) -> bool;
+	auto find(std::string_view name) -> std::shared_ptr<SymbolEntry>;
+	auto insert(std::string_view name, std::shared_ptr<SymbolEntry> entry) -> bool;
 private:
-	std::unordered_map<std::string_view, llvm::Value*> m_table;
+	std::unordered_map<std::string_view, std::shared_ptr<SymbolEntry>> m_table;
 };
+
 
 class LocalSymbolTable final
 {
@@ -42,20 +54,14 @@ public:
 	 * @note 上层块的symbolTable由调用者管理
 	 */
 	LocalSymbolTable(LocalSymbolTable* upper_table);
-	LocalSymbolTable(llvm::Function* func);
+	LocalSymbolTable(llvm::Function* func,
+					 std::shared_ptr<GlobalSymbolTable> global);
 	~LocalSymbolTable() = default;
 
 	/**
-	 * @param value 为eval声明的eval变量
 	 * @return 如果本作用域存在同名变量，返回false 
 	 */
-	auto insert(std::string_view name, llvm::Value* value) -> bool;
-
-	/**
-	 * @param value 为eval声明的eval变量
-	 * @return 如果本作用域存在同名变量，返回false 
-	 */
-	auto insert(std::string_view name, llvm::AllocaInst* alloca) -> bool;
+	auto insert(std::string_view name, std::shared_ptr<SymbolEntry> entry) -> bool;
 
 	[[nodiscard]]
 	auto lookup(std::string_view sv, bool search_this_level = true)
@@ -72,6 +78,7 @@ private:
 	std::unordered_map<std::string_view, std::shared_ptr<SymbolEntry>> m_table;
 	LocalSymbolTable* m_upper;
 	llvm::Function* m_func;
+	std::shared_ptr<GlobalSymbolTable> m_global_table;
 };
 
 }	//namespace toycc

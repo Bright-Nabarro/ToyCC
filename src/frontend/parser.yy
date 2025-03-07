@@ -99,7 +99,7 @@ namespace toycc { class Driver; }
 %nterm <std::unique_ptr<toycc::ParamList>>		ParamList
 %nterm <std::unique_ptr<toycc::FuncDef>>		FuncDef
 // expr
-%nterm <std::unique_ptr<toycc::PassingParams>	PassingParams
+%nterm <std::unique_ptr<toycc::PassingParams>>	PassingParams
 %nterm <std::unique_ptr<toycc::Expr>>			Expr
 %nterm <std::unique_ptr<toycc::ExprList>>		ExprList
 %nterm <std::unique_ptr<toycc::UnaryExpr>>		UnaryExpr
@@ -398,21 +398,35 @@ UnaryExpr
 	: PrimaryExpr {
 		assert_same_ptr(toycc::PrimaryExpr, $1);
 		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
-			UnaryExpr::primary_expr, std::move($1));
+			toycc::UnaryExpr::primary_expr, std::move($1));
 	}
 	| UnaryOp UnaryExpr {
 		assert_same_ptr(toycc::UnaryOp, $1);
 		assert_same_ptr(toycc::UnaryExpr, $2);
 		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
-			UnaryExpr::unary_op, std::move($1), std::move($2));
+			toycc::UnaryExpr::unary_op, std::move($1), std::move($2));
 	}
 	| Ident "(" ")" {
 		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
-			UnaryExpr::call, std::move($1));
+			toycc::UnaryExpr::call, std::move($1));
 	}
 	| Ident "(" PassingParams ")" {
 		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
-			UnaryExpr::call_with_params, std::move($1), std::move($3));
+			toycc::UnaryExpr::call_with_params, std::move($1), std::move($3));
+	};
+
+PassingParams
+	: Expr ExprList {
+		$$ = std::make_unique<toycc::PassingParams>(CONSTRUCT_LOCATION(@$),
+			std::move($1), std::move($2));
+	};
+
+ExprList
+	: /*empty*/ {
+		$$ = std::make_unique<toycc::ExprList>(CONSTRUCT_LOCATION(@$));
+	}
+	| ExprList "," Expr {
+		$$ = std::make_unique<toycc::ExprList>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($3));
 	};
 
 UnaryOp

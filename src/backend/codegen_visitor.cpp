@@ -25,7 +25,8 @@ CodeGenVisitor::CodeGenVisitor(llvm::LLVMContext& context,
 	  m_builder{m_module->getContext()},
 	  m_type_mgr{std::make_shared<TypeMgr>(m_module->getContext(), tm)},
 	  m_cvt_helper { cvt_helper },
-	  m_src_mgr{src_mgr}, m_target_machine{tm}, m_logger{logger}
+	  m_src_mgr{src_mgr}, m_target_machine{tm}, m_logger{logger},
+	  m_global_table { std::make_shared<GlobalSymbolTable>() }
 {
 }
 
@@ -163,7 +164,7 @@ auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
 		llvm::BasicBlock::Create(m_module->getContext(), block_name.data(), func);
 
 	// 局部符号表
-	LocalSymbolTable table(func);
+	LocalSymbolTable table(func, m_global_table);
 
 	m_builder.SetInsertPoint(basic_block);
 	handle(node.get_block_item_list(), table);
@@ -209,7 +210,7 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 		auto left_entry = handle(node.get_lval(), table);
 		llvm::Value* right_value = handle(node.get_expr(), table);
 
-		if (left_entry->is_eval) [[unlikely]]
+		if (left_entry->type != SymbolEntry::alloca_value) [[unlikely]]
 		{
 			report_in_ast(node, Location::DiagKind::dk_error,
 						  "An eval value cannot be assigned");
@@ -372,7 +373,7 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 		}
 		else
 		{
-			result = entry->is_eval ?
+			result = entry->type == SymbolEntry::eval_value ?
 				entry->value :
 				m_builder.CreateLoad(entry->alloca->getAllocatedType(), entry->alloca);
 		}
@@ -394,8 +395,28 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 	-> llvm::Value*
 {
-	D_BEGIN;
+	static auto handle_func = [this](const UnaryExpr& node) -> llvm::Function*
+	{
+		auto func_name = handle(node.get_ident());
+		auto entry = m_global_table->find(func_name);
+		if (!entry)
+		{
+			report_in_ast(node, Location::dk_error,
+						  std::format("Cannot find function {}", func_name));
+			return nullptr;
+		}
+		if (entry->type != SymbolEntry::func_value)
+		{
+			report_in_ast(
+				node, Location::dk_error,
+				std::format("Value {} is not a function type", func_name));
+		}
+		llvm::Function* func = llvm::cast<llvm::Function>(entry->value);
+		return func;
+	};
 
+	D_BEGIN;
+	
 	llvm::Value* result = nullptr;
 	switch(node.get_unary_type())
 	{
@@ -406,10 +427,21 @@ auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 		result = handle(node.get_unary_expr(), table);
 		result = unary_operate(node.get_unary_op(), result);
 		break;
-	case UnaryExpr::call_with_params: 
+	case UnaryExpr::call_with_params: {
+		auto func = handle_func(node);
+		if (!func)
+			return nullptr;
+		auto passing_list = handle(node.get_passing_params(), table);
+
+		m_builder.CreateCall(func, passing_list);
+		break;
+	}
 	case UnaryExpr::call: {
-		auto func_name = handle(node.get_ident());	
-		
+		auto func = handle_func(node);
+		if (!func)
+			return nullptr;
+
+		m_builder.CreateCall(func);
 		break;
 	}
 	default:
@@ -419,6 +451,37 @@ auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 	D_END;
 
 	return result;
+}
+
+auto CodeGenVisitor::handle(const PassingParams& node, LocalSymbolTable& table)
+		-> std::vector<llvm::Value*>
+{
+	D_BEGIN;
+	std::vector<llvm::Value*> result;
+	result.reserve(node.size());
+	result.push_back(handle(node.get_expr(), table));
+	handle(node.get_expr_list(), table, result);
+
+	D_END;
+
+	return result;
+}
+
+auto CodeGenVisitor::handle(const ExprList& node, LocalSymbolTable& table,
+							std::vector<llvm::Value*>& list) -> bool
+{
+	D_BEGIN;
+	for (const auto& expr: node)
+	{
+		auto ret = handle(*expr, table);
+		if (!ret)
+			return false;
+		list.push_back(ret);
+	}
+
+	D_END;
+
+	return true;
 }
 
 auto CodeGenVisitor::handle(const Number& node) -> llvm::Value*
@@ -476,7 +539,8 @@ void CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
 	llvm::Value* left_value = right_value;
 	left_value->mutateType(left_type);
 
-	if (!table.insert(name_str, left_value))
+	auto entry = std::make_shared<SymbolEntry>(SymbolEntry::eval_value, left_value);
+	if (!table.insert(name_str, entry))
 	{
 		report_in_ast(node, Location::dk_error,
 				std::format("Variable {} has been defined", name_str));
@@ -749,7 +813,8 @@ void CodeGenVisitor::handle(const VarDef& node, llvm::Type* type,
 		m_builder.CreateStore(right_value, alloca_inst);
 	}
 	// 在符号表中添加对应条目
-	table.insert(name_str, alloca_inst);
+	auto entry = std::make_shared<SymbolEntry>(alloca_inst);
+	table.insert(name_str, entry);
 
 	D_END;
 }
