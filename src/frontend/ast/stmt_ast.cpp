@@ -3,13 +3,52 @@
 namespace toycc
 {
 
+SelectStmt::SelectStmt(std::unique_ptr<Location> location,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<Stmt> if_stmt):
+	BaseAST { ast_select_stmt, std::move(location) },
+	m_expr { std::move(expr) },
+	m_if_stmt { std::move(if_stmt) },
+	m_else_stmt { nullptr }
+{}
+
+SelectStmt::SelectStmt(std::unique_ptr<Location> location,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<Stmt> if_stmt,
+			std::unique_ptr<Stmt> else_stmt):
+	BaseAST { ast_select_stmt, std::move(location) },
+	m_expr { std::move(expr) },
+	m_if_stmt { std::move(if_stmt) },
+	m_else_stmt { std::move(else_stmt) }
+{}
+
+SelectStmt::~SelectStmt() {}
+
+auto SelectStmt::get_expr() const -> const Expr&
+{
+	return *m_expr;
+}
+
+auto SelectStmt::get_if_stmt() const -> const Stmt&
+{
+	assert(m_if_stmt != nullptr);
+	return *m_if_stmt;
+}
+
+auto SelectStmt::get_else_stmt() const -> const Stmt&
+{
+	assert(m_else_stmt != nullptr);
+	return *m_else_stmt;
+}
+
 /// Stmt
 Stmt::~Stmt() {}
 
 Stmt::Stmt(std::unique_ptr<Location> location, StmtType type):
 	BaseAST { ast_stmt, std::move(location) }, m_type { type },
 		m_lval { nullptr }, m_expr { nullptr },
-		m_block { nullptr }, m_stmts{}
+		m_block { nullptr }, m_stmt{ nullptr },
+		m_select_stmt { nullptr }
 {
 	assert(type == StmtType::func_return || type == StmtType::expression);
 }
@@ -18,7 +57,8 @@ Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
 	 std::unique_ptr<Expr> expr):
 	BaseAST { ast_stmt, std::move(location) }, m_type { type },
 		m_lval { nullptr }, m_expr { std::move(expr) },
-		m_block { nullptr }, m_stmts{}
+		m_block { nullptr }, m_stmt { nullptr },
+		m_select_stmt { nullptr }
 {
 	assert(type == StmtType::func_return || type == StmtType::expression);
 }
@@ -27,7 +67,8 @@ Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
            std::unique_ptr<LVal> lval, std::unique_ptr<Expr> expr)
     : BaseAST{ast_stmt, std::move(location)}, m_type{type},
       m_lval{std::move(lval)}, m_expr{std::move(expr)},
-      m_block{nullptr}, m_stmts{}
+      m_block{nullptr}, m_stmt { nullptr },
+	  m_select_stmt { nullptr }
 {
 	assert(type == StmtType::assign);
 }
@@ -35,7 +76,8 @@ Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
 Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
 		   std::unique_ptr<Block> block)
 	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
-	  m_expr{nullptr}, m_block{std::move(block)}, m_stmts{}
+	  m_expr{nullptr}, m_block{std::move(block)}, m_stmt { nullptr },
+	  m_select_stmt { nullptr }
 {
 	assert(type == StmtType::block);
 }
@@ -43,21 +85,20 @@ Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
 Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
 	std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> stmt)
 	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
-	  m_expr{std::move(expr)}, m_block{}, m_stmts {}
+	  m_expr{std::move(expr)}, m_block{}, m_stmt { std::move(stmt) },
+	  m_select_stmt { nullptr }
 {
 	assert(type == StmtType::if_stmt || type == StmtType::while_stmt);
-	m_stmts.push_back(std::move(stmt));
 }
 
 
 Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
-	std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> if_stmt,
-	std::unique_ptr<Stmt> else_stmt)
+	std::unique_ptr<Expr> expr, std::unique_ptr<SelectStmt> select_stmt)
 	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
-	  m_expr{std::move(expr)}, m_block{}, m_stmts {}
+	  m_expr{std::move(expr)}, m_block{}, m_stmt {},
+	  m_select_stmt { std::move(select_stmt) }
 {
-	m_stmts.push_back(std::move(if_stmt));
-	m_stmts.push_back(std::move(else_stmt));
+	assert(type == StmtType::if_stmt);
 }
 
 
@@ -85,10 +126,16 @@ auto Stmt::get_block() const -> const Block&
 	return *m_block;
 }	
 
-auto Stmt::get_stmts() const -> const std::vector<std::unique_ptr<Stmt>>&
+auto Stmt::get_stmt() const -> const Stmt&
 {
-	assert(!m_stmts.empty());
-	return m_stmts;
+	assert(m_stmt != nullptr);
+	return *m_stmt;
+}
+
+auto Stmt::get_select_stmt() const -> const SelectStmt&
+{
+	assert(m_select_stmt != nullptr);
+	return *m_select_stmt;
 }
 
 /// Param
@@ -241,6 +288,53 @@ auto FuncDef::get_paramlist() const -> const ParamList&
 auto FuncDef::get_block() const -> const Block&
 {
 	return *m_block;
+}
+
+Module::Module(std::unique_ptr<Location> location, ModuleType type,
+				   std::unique_ptr<FuncDef> func_def)
+	: BaseAST{ast_module, std::move(location)}, m_type{type},
+	  m_comp_unit{nullptr}, m_func_def{std::move(func_def)}, m_ident{nullptr}
+{}
+
+Module::Module(std::unique_ptr<Location> location,
+			 ModuleType type,
+			 std::unique_ptr<Module> comp_unit,
+			 std::unique_ptr<FuncDef> func_def)
+	: BaseAST{ast_module, std::move(location)}, m_type{type},
+	  m_comp_unit{std::move(comp_unit)}, m_func_def{std::move(func_def)}, m_ident{nullptr}
+{}
+
+Module::Module(std::unique_ptr<Location> location,
+			 ModuleType type,
+			 std::unique_ptr<Ident> ident)
+	: BaseAST{ast_module, std::move(location)}, m_type{type},
+	  m_comp_unit{}, m_func_def{}, m_ident{std::move(ident)}
+{}
+
+
+Module::Module(std::unique_ptr<Location> location,
+			 ModuleType type,
+			 std::unique_ptr<Module> comp_unit,
+			 std::unique_ptr<Ident> ident)
+	: BaseAST{ast_comunit, std::move(location)}, m_type{type},
+	  m_comp_unit{std::move(comp_unit)}, m_func_def{}, m_ident{std::move(ident)}
+{}
+
+auto Module::get_func_def() const -> const FuncDef&
+{
+	assert(!m_func_def);
+	return *m_func_def;
+}
+
+auto Module::get_module() const -> const Module&
+{
+	assert(!m_comp_unit);
+	return *m_comp_unit;
+}
+
+auto Module::has_next_module() const -> bool
+{
+	return m_comp_unit != nullptr;
 }
 
 }	//namespace toycc

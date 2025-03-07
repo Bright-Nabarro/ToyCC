@@ -44,6 +44,7 @@ AST_KIND(ast_var_def_list, "Variable Definition List")
 AST_KIND(ast_init_val, "Initialization Value")
 
 AST_KIND(ast_stmt, "Statement")
+AST_KIND(ast_select_stmt, "Selection Statement")
 
 AST_KIND(ast_block, "Block Statement")
 AST_KIND(ast_block_item_list, "Block Item List")
@@ -57,6 +58,7 @@ AST_KIND(ast_param, "Parameter")
 AST_KIND(ast_paramlist, "Parameter List")
 AST_KIND(ast_funcdef, "Function Definition")
 
+AST_KIND(ast_module, "Recursive Unit Organizer")
 AST_KIND(ast_comunit, "Commpilation Unit")
 
 

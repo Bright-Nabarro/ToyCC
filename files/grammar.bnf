@@ -1,7 +1,8 @@
 # 开始符
-CompUnit    ::= CompUnit Decl
+CompUnit    ::= Module
+Module 		::= Module Decl
 			| 	Decl
-			|	CompUnit FuncDef
+			|	Module FuncDef
 			|	FuncDef;
 
 # 函数定义与返回类型
@@ -44,10 +45,14 @@ Stmt        	::= LVal "=" Expr								# assign
 				| Block											# block
 				| "return" Expr ";" 							# return
 				| "return" /*empty*/ ";" 						# return
-				| "if" "(" Expr ")" Stmt						# if_stmt
-				| "if" "(" Expr ")" Stmt "else" Stmt			# if_stmt
 				| "while" "(" Expr ")" Stmt						# while_stmt
+				| SelectStmt									# if_stmt
 				;
+
+SelectStmt		::= "if" "(" Expr ")" Stmt						# if_stmt
+				|   "if" "(" Expr ")" Stmt "else" Stmt			# if_stmt
+				;
+
 ConstExpr		::= Expr;
 Expr        	::= LOrExpr;
 

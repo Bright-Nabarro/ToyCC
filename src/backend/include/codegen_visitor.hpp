@@ -36,6 +36,7 @@ private:
 	using SymbolTable = std::unordered_map<std::string_view, llvm::Value*>;
 
 	void handle(const CompUnit& node);
+	void handle(const Module& node);
 	void handle(const FuncDef& node);
 
 	auto handle(const BuiltinType& node) -> llvm::Type*;

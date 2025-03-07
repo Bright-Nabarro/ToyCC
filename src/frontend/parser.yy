@@ -76,7 +76,9 @@ namespace toycc { class Driver; }
 %nterm <std::unique_ptr<toycc::Ident>>			Ident
 %nterm <std::unique_ptr<toycc::LVal>>			LVal
 //语句
+%nterm <std::unique_ptr<toycc::Module>>			Module
 %nterm <std::unique_ptr<toycc::Stmt>>			Stmt
+%nterm <std::unique_ptr<toycc::SelectStmt>>		SelectStmt
 %nterm <std::unique_ptr<toycc::Decl>>			Decl
 %nterm <std::unique_ptr<toycc::Block>>			Block
 %nterm <std::unique_ptr<toycc::BlockItemList>>	BlockItemList
@@ -124,21 +126,35 @@ namespace toycc { class Driver; }
 
 %start CompUnit;
 
-CompUnit:
+CompUnit: Module 
+	{
+		auto comp_unit_ptr = std::make_unique<toycc::CompUnit>(
+			CONSTRUCT_LOCATION(@$), std::move($1));
+		driver.set_ast(std::move(comp_unit_ptr));
+	};
+
+Module:
 	FuncDef 
 	{
-		//llvm::isa足够智能，能够区分裸指针和智能指针的情况
-		assert_same_ptr(toycc::FuncDef, $1);
-		std::unique_ptr<toycc::Location> location =
-			CONSTRUCT_LOCATION(@$);
-		auto comp_unit_ptr =
-			std::make_unique<toycc::CompUnit>(std::move(location), std::move($1));
-		driver.set_ast(std::move(comp_unit_ptr));
+		$$ = std::make_unique<toycc::Module>(CONSTRUCT_LOCATION(@$),
+			toycc::Module::extern_func,
+			std::move($1));
 	}
-	| CompUnit FuncDef
+	| Module FuncDef
 	{
-		$$ = std::make_unique<toycc::CompUnit>(CONSTRUCT_LOCATION(@$),
+		$$ = std::make_unique<toycc::Module>(CONSTRUCT_LOCATION(@$),
+			toycc::Module::extern_func,
 			std::move($1), std::move($2));
+	}
+	| Module Ident {
+		$$ = std::make_unique<toycc::Module>(CONSTRUCT_LOCATION(@$),
+			toycc::Module::extern_global_variable,
+			std::move($1), std::move($2));
+	}
+	| Ident {
+		$$ = std::make_unique<toycc::Module>(CONSTRUCT_LOCATION(@$),
+			toycc::Module::extern_global_variable,
+			std::move($1));
 	};
 
 FuncDef :
@@ -358,21 +374,26 @@ Stmt
 		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
 			toycc::Stmt::block, std::move($1));
 	}
-	| KW_IF "(" Expr ")" Stmt {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::if_stmt, std::move($3), std::move($5));
-	}
-	// 1     2   3    4   5     6      7
-	| KW_IF "(" Expr ")" Stmt KW_ELSE Stmt {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::if_stmt, std::move($3), std::move($5), std::move($7));
-	}
 	// 1 		2	3	 4	 5
 	| KW_WHILE "(" Expr ")" Stmt {
 		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::if_stmt, std::move($3), std::move($5));
+			toycc::Stmt::while_stmt, std::move($3), std::move($5));
+	}
+	| SelectStmt {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			toycc::Stmt::if_stmt, std::move($1));
 	};
 
+SelectStmt:
+	 KW_IF "(" Expr ")" Stmt {
+		$$ = std::make_unique<toycc::SelectStmt>(CONSTRUCT_LOCATION(@$),
+			std::move($3), std::move($5));
+	}
+	// 1     2   3    4   5     6      7
+	| KW_IF "(" Expr ")" Stmt KW_ELSE Stmt {
+		$$ = std::make_unique<toycc::SelectStmt>(CONSTRUCT_LOCATION(@$),
+			std::move($3), std::move($5), std::move($7));
+	}
 Expr
 	: LOrExpr {
 		assert_same_ptr(toycc::LOrExpr, $1);

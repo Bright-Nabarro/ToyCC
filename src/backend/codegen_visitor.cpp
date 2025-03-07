@@ -63,7 +63,28 @@ auto CodeGenVisitor::visit(BaseAST* ast) -> std::expected<void, std::string>
 void CodeGenVisitor::handle(const CompUnit& node)
 {
 	D_BEGIN;
-	handle(node.get_func_def());
+	handle(node.get_module());
+	D_END;
+}
+
+void CodeGenVisitor::handle(const Module& node)
+{
+	D_BEGIN;
+	switch(node.get_type())
+	{
+	case Module::extern_func:
+		if (node.has_next_module())
+			handle(node.get_module());
+		handle(node.get_func_def());
+		break;
+	case Module::extern_global_variable:
+		if (node.has_next_module())
+			handle(node.get_module());
+		handle(node.get_module());
+		break;
+	default:
+		assert(false && "Unsupport");
+	}
 	D_END;
 }
 

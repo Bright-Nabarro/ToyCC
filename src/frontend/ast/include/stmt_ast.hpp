@@ -9,9 +9,38 @@ namespace toycc
 {
 
 class Block;
-/**
- * Stmt ::= "return" Expr ";";
- */
+class Stmt;
+
+class SelectStmt: public BaseAST
+{
+public:
+	TOYCC_AST_FILL_CLASSOF(ast_select_stmt);
+	SelectStmt(std::unique_ptr<Location> location,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<Stmt> if_stmt);
+	SelectStmt(std::unique_ptr<Location> location,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<Stmt> if_stmt,
+			std::unique_ptr<Stmt> else_stmt);
+	~SelectStmt();
+
+	[[nodiscard]]
+	auto has_else_stmt() const -> bool
+	{ return m_else_stmt != nullptr; }
+
+	[[nodiscard]]
+	auto get_expr() const -> const Expr&;
+	[[nodiscard]]
+	auto get_if_stmt() const -> const Stmt&;
+	[[nodiscard]]
+	auto get_else_stmt() const -> const Stmt&;
+
+private:
+	std::unique_ptr<Expr> m_expr;
+	std::unique_ptr<Stmt> m_if_stmt;
+	std::unique_ptr<Stmt> m_else_stmt;
+};
+
 class Stmt: public BaseAST
 {
 public:
@@ -37,11 +66,10 @@ public:
 		std::unique_ptr<Block> block);
 
 	Stmt(std::unique_ptr<Location> location, StmtType type,
-		std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> if_stmt);
+		std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> stmt);
 
 	Stmt(std::unique_ptr<Location> location, StmtType type,
-		std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> if_stmt,
-		std::unique_ptr<Stmt> else_stmt);
+		std::unique_ptr<Expr> expr, std::unique_ptr<SelectStmt> select_stmt);
 
 	~Stmt();
 
@@ -62,14 +90,17 @@ public:
 	auto get_block() const -> const Block&;
 
 	[[nodiscard]]
-	auto get_stmts() const -> const std::vector<std::unique_ptr<Stmt>>&;
+	auto get_stmt() const -> const Stmt&;
 
+	[[nodiscard]]
+	auto get_select_stmt() const -> const SelectStmt&;
 private:
 	StmtType m_type;
 	std::unique_ptr<LVal> m_lval;
 	std::unique_ptr<Expr> m_expr;
 	std::unique_ptr<Block> m_block;
-	std::vector<std::unique_ptr<Stmt>> m_stmts;
+	std::unique_ptr<Stmt> m_stmt;
+	std::unique_ptr<SelectStmt> m_select_stmt;
 };
 
 
@@ -211,6 +242,52 @@ private:
 	std::unique_ptr<Ident> m_ident;
 	std::unique_ptr<ParamList> m_paramlist;
 	std::unique_ptr<Block> m_block;
+};
+
+class Module: public BaseAST
+{
+public:
+	enum ModuleType {
+		extern_global_variable,
+		extern_func,
+		static_global_variable,
+		static_func,
+	};
+	TOYCC_AST_FILL_CLASSOF(ast_module)
+	Module(std::unique_ptr<Location> location,
+			 ModuleType type,
+			 std::unique_ptr<FuncDef> func_def);
+
+	Module(std::unique_ptr<Location> location,
+			 ModuleType type,
+			 std::unique_ptr<Module> comp_unit,
+			 std::unique_ptr<FuncDef> func_def);
+
+	Module(std::unique_ptr<Location> location,
+			 ModuleType type,
+			 std::unique_ptr<Ident> ident);
+
+	Module(std::unique_ptr<Location> location,
+			 ModuleType type,
+			 std::unique_ptr<Module> comp_unit,
+			 std::unique_ptr<Ident> ident);
+
+	[[nodiscard]]
+	auto get_func_def() const -> const FuncDef&;
+	[[nodiscard]]
+	auto get_module() const -> const Module&;
+	[[nodiscard]]
+	auto has_next_module() const -> bool;
+	[[nodiscard]]
+	auto get_type() const -> ModuleType
+	{ return m_type; }
+	
+
+private:
+	ModuleType m_type;
+	std::unique_ptr<Module> m_comp_unit;
+	std::unique_ptr<FuncDef> m_func_def;
+	std::unique_ptr<Ident> m_ident;
 };
 
 } // namespace toycc
