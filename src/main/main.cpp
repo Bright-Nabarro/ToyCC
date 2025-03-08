@@ -64,7 +64,7 @@ static llvm::cl::opt<std::string> optimization {
 	llvm::cl::init("0")
 };
 
-auto create_target_machine() -> std::unique_ptr<llvm::TargetMachine>
+auto create_target_machine() -> std::shared_ptr<llvm::TargetMachine>
 {
 	//三元组包括: 架构, 供应商, 操作系统环境
 	auto triple = llvm::Triple {
@@ -91,9 +91,10 @@ auto create_target_machine() -> std::unique_ptr<llvm::TargetMachine>
 	// 创建目标机器
 	// getTriple 返回三元组字符串表示
 	// 指定目标的重定位模型：静态，动态(位置无关)
-	auto tm = std::unique_ptr<llvm::TargetMachine> (target->createTargetMachine(
+	auto tm_rowptr = target->createTargetMachine(
 		triple.getTriple(), cpu_str, feature_str, target_options,
-		std::optional<llvm::Reloc::Model>{llvm::codegen::getRelocModel()}));
+		std::optional<llvm::Reloc::Model>{llvm::codegen::getRelocModel()});
+	auto tm = std::shared_ptr<llvm::TargetMachine> (tm_rowptr);
 
 	return tm;
 }
@@ -131,26 +132,19 @@ auto frontend_procedure(llvm::SourceMgr& src_mgr, std::string_view file, auto& g
 /**
  * @brief 语义分析，中间代码生成
  */
-auto backend_procedure(toycc::CodeGenContext& cgc, llvm::SourceMgr& src_mgr,
-					   auto logger, auto ast)
+auto backend_procedure(std::shared_ptr<toycc::CodeGenContext> cgc, auto ast)
 	-> std::unique_ptr<llvm::Module>
 {
-
-	std::shared_ptr<toycc::ConversionConfig> cvt_config = std::make_shared<toycc::ConversionConfig>();
-	auto llvm_cvt_helper = std::make_shared<toycc::ConversionHelper>(cvt_config, cgc.get_llvm_context());
-
-	// 语义分析，中间代码生成
-	toycc::CodeGenVisitor visitor{cgc.get_llvm_context(), llvm_cvt_helper,
-								  src_mgr, cgc.get_target_machine(), logger};
+	toycc::CodeGenVisitor visitor{cgc};
 
 	auto void_or_error = visitor.visit(ast.get());
 	if (!void_or_error)
 	{
-		logger->error("{}", void_or_error.error());
+		cgc->get_logger().error("{}", void_or_error.error());
 		return nullptr;
 	}
 
-	return visitor.get_module();
+	return visitor.get_result();
 }
 
 auto main(int argc, char* argv[]) -> int
@@ -173,8 +167,6 @@ auto main(int argc, char* argv[]) -> int
 	if (tm == nullptr)
 		return 1;
 
-	toycc::CodeGenContext cg_context { "toycc.expr", std::move(tm) };
-
 	// 全局的源码管理
 	llvm::SourceMgr src_mgr;
 
@@ -182,6 +174,12 @@ auto main(int argc, char* argv[]) -> int
 	auto backend_logger = std::make_shared<spdlog::async_logger>("backend", global_sink,
 			spdlog::thread_pool(), spdlog::async_overflow_policy::block);
 	spdlog::register_logger(backend_logger);
+
+	std::shared_ptr<toycc::ConversionConfig> cvt_config =
+		std::make_shared<toycc::ConversionConfig>();
+
+	auto cg_context = std::make_shared<toycc::CodeGenContext>(
+		cvt_config, src_mgr, tm, backend_logger);
 
 	// 词法，语法分析
 	auto ast = frontend_procedure(src_mgr, input_file.getValue(), global_sink);
@@ -192,7 +190,7 @@ auto main(int argc, char* argv[]) -> int
 	}
 
 	// 语义分析，中间代码生成
-	auto module = backend_procedure(cg_context, src_mgr, backend_logger, std::move(ast));
+	auto module = backend_procedure(cg_context, std::move(ast));
 	if (module == nullptr)
 	{
 		backend_logger->error("backend procedure error");
@@ -200,7 +198,7 @@ auto main(int argc, char* argv[]) -> int
 	}
 
 	//生成目标文件 (llvm-ir, 汇编或二进制.o)
-	toycc::EmitTarget emit{input_file.getValue(), cg_context.get_target_machine(), emit_llvm.getValue(),
+	toycc::EmitTarget emit{input_file.getValue(), tm, emit_llvm.getValue(),
 						   optimization.getValue(), backend_logger};
 
 	if (!output_file.empty())

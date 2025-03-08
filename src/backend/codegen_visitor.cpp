@@ -16,19 +16,10 @@
 namespace toycc
 {
 
-CodeGenVisitor::CodeGenVisitor(llvm::LLVMContext& context,
-							   std::shared_ptr<ConversionHelper> cvt_helper,
-							   llvm::SourceMgr& src_mgr,
-							   llvm::TargetMachine* tm,
-							   std::shared_ptr<spdlog::async_logger> logger)
-	: m_module{std::make_unique<llvm::Module>("toycc.expr", context)},
-	  m_builder{m_module->getContext()},
-	  m_type_mgr{std::make_shared<TypeMgr>(m_module->getContext(), tm)},
-	  m_cvt_helper { cvt_helper },
-	  m_src_mgr{src_mgr}, m_target_machine{tm}, m_logger{logger},
-	  m_global_table { std::make_shared<GlobalSymbolTable>() }
-{
-}
+CodeGenVisitor::CodeGenVisitor(std::shared_ptr<CodeGenContext> cg_context):
+	CGContextInterface { cg_context },
+	m_global_table { std::make_shared<GlobalSymbolTable>() }
+{}
 
 auto CodeGenVisitor::visit(BaseAST* ast) -> std::expected<void, std::string>
 {
@@ -48,28 +39,17 @@ auto CodeGenVisitor::visit(BaseAST* ast) -> std::expected<void, std::string>
 	return {};
 }
 
-#define D_BEGIN                                                                \
-	do                                                                         \
-	{                                                                          \
-		m_logger->debug("{} Begin", node.get_kind_str());                      \
-	} while (0);
-
-#define D_END                                                                  \
-	do                                                                         \
-	{                                                                          \
-		m_logger->debug("{} End", node.get_kind_str());                        \
-	} while (0);
 
 void CodeGenVisitor::handle(const CompUnit& node)
 {
-	D_BEGIN;
+	
 	handle(node.get_module());
-	D_END;
+	
 }
 
 void CodeGenVisitor::handle(const Module& node)
 {
-	D_BEGIN;
+	
 	switch(node.get_type())
 	{
 	case Module::extern_func:
@@ -85,7 +65,7 @@ void CodeGenVisitor::handle(const Module& node)
 	default:
 		assert(false && "Unsupport");
 	}
-	D_END;
+	
 }
 
 void CodeGenVisitor::handle(const FuncDef& node)
@@ -98,7 +78,7 @@ void CodeGenVisitor::handle(const FuncDef& node)
 
 	auto func =
 		llvm::Function::Create(func_type, llvm::GlobalValue::ExternalLinkage,
-							   func_name, m_module.get());
+							   func_name, get_module());
 
 	create_basic_block(node.get_block(), func, "entry", param_names);
 
@@ -106,46 +86,46 @@ void CodeGenVisitor::handle(const FuncDef& node)
 
 auto CodeGenVisitor::handle(const BuiltinType& node) -> llvm::Type*
 {
-	D_BEGIN;
+	
 
 	llvm::Type* ret;
 	switch(node.get_type())
 	{
 	case toycc::BuiltinTypeEnum::ty_signed_int:
-		ret = m_type_mgr->get_signed_int();
+		ret = get_type_mgr().get_signed_int();
 		break;
 	case toycc::BuiltinTypeEnum::ty_unsigned_int:
-		ret = m_type_mgr->get_unsigned_int();
+		ret = get_type_mgr().get_unsigned_int();
 		break;
 	case toycc::BuiltinTypeEnum::ty_void:
-		ret = m_type_mgr->get_void();
+		ret = get_type_mgr().get_void();
 		break;
 	default:
 		assert(false &&"toycc::Type to llvm::Type*");
 	}
 
-	D_END;
+	
 
 	return ret;
 }
 
 auto CodeGenVisitor::handle(const ScalarType& node) -> llvm::Type*
 {
-	D_BEGIN;
+	
 	llvm::Type* ret;
 	switch(node.get_type())
 	{
 	case toycc::BuiltinTypeEnum::ty_signed_int:
-		ret = m_type_mgr->get_signed_int();
+		ret = get_type_mgr().get_signed_int();
 		break;
 	case toycc::BuiltinTypeEnum::ty_unsigned_int:
-		ret = m_type_mgr->get_unsigned_int();
+		ret = get_type_mgr().get_unsigned_int();
 		break;
 	default:
 		assert(false && "Unkown TypeEnum int toycc::Type when handling "
 			  "toycc::Type to llvm::Type*");
 	}
-	D_END;
+	
 	return ret;
 }
 
@@ -182,7 +162,7 @@ auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
 	-> llvm::BasicBlock*
 {
 	auto basic_block =
-		llvm::BasicBlock::Create(m_module->getContext(), block_name.data(), func);
+		llvm::BasicBlock::Create(get_llvm_context(), block_name.data(), func);
 
 	llvm::Function::arg_iterator args_itr = func->arg_begin();
 	std::vector<llvm::Value*> arg_values(func->arg_size());
@@ -195,7 +175,7 @@ auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
 	}
 	assert(args_itr == func->arg_end());
 	
-	m_builder.SetInsertPoint(basic_block);
+	get_builder().SetInsertPoint(basic_block);
 
 	// 局部符号表
 	LocalSymbolTable table(func, m_global_table);
@@ -203,8 +183,8 @@ auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
 	for (std::size_t i = 0; i < param_names.size(); ++i)
 	{
 		llvm::Type* type = arg_values[i]->getType();
-		llvm::AllocaInst* alloca = m_builder.CreateAlloca(type);
-		m_builder.CreateStore(arg_values[i], alloca);
+		llvm::AllocaInst* alloca = get_builder().CreateAlloca(type);
+		get_builder().CreateStore(arg_values[i], alloca);
 		auto entry = std::make_shared<SymbolEntry>(alloca);
 		table.insert(param_names[i], entry);
 	}
@@ -222,28 +202,28 @@ void CodeGenVisitor::handle(const Block& node, LocalSymbolTable& upper_table)
 
 void CodeGenVisitor::handle(const BlockItemList& node, LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 	for (const auto& block_item : node)
 	{
 		assert(block_item != nullptr);
 		handle(*block_item, table);
 	}
-	D_END;
+	
 }
 
 void CodeGenVisitor::handle(const BlockItem& node, LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 	if (node.has_decl())
 		handle(node.get_decl(), table);
 	else if (node.has_stmt())
 		handle(node.get_stmt(), table);
-	D_END;
+	
 }
 
 void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 	switch (node.get_type())
 	{
 	case Stmt::assign:
@@ -260,16 +240,16 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 
 		if (left_entry == nullptr) [[unlikely]]
 		{
-			m_logger->info("User Error occured in Stmt::assign left value");
+			get_logger().info("User Error occured in Stmt::assign left value");
 			break;
 		}
 		if (right_value == nullptr) [[unlikely]]
 		{
-			m_logger->info("User Error occured in Stmt::assign right value");
+			get_logger().info("User Error occured in Stmt::assign right value");
 			break;
 		}
 
-		m_builder.CreateStore(right_value, left_entry->alloca);
+		get_builder().CreateStore(right_value, left_entry->alloca);
 		
 		break;
 	}
@@ -277,14 +257,14 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 	{
 		if (!node.has_expr())
 		{
-			m_logger->debug("Empty Stmt expression");
+			get_logger().debug("Empty Stmt expression");
 			break;
 		}
 
 		auto value = handle(node.get_expr(), table);
 		if (value == nullptr)
 		{
-			m_logger->info("User Error occured in Stmt::expression");
+			get_logger().info("User Error occured in Stmt::expression");
 		}
 		break;
 	}
@@ -297,16 +277,16 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 	{
 		if (!node.has_expr())
 		{
-			m_logger->debug("Empty return statement");
-			m_builder.CreateRetVoid();
+			get_logger().debug("Empty return statement");
+			get_builder().CreateRetVoid();
 			break;
 		}
 		auto value = handle(node.get_expr(), table);
 		if (value == nullptr)
 		{
-			m_logger->info("User Error occured in Stmt::func_return");
+			get_logger().info("User Error occured in Stmt::func_return");
 		}
-		m_builder.CreateRet(value);
+		get_builder().CreateRet(value);
 		break;
 	}
 	case Stmt::if_stmt:
@@ -317,78 +297,78 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 	case Stmt::while_stmt:
 	{
 		llvm::BasicBlock* cond = llvm::BasicBlock::Create(
-			m_module->getContext(), "", table.get_func());
+			get_module()->getContext(), "", table.get_func());
 		llvm::BasicBlock* body = llvm::BasicBlock::Create(
-			m_module->getContext(), "", table.get_func());
+			get_module()->getContext(), "", table.get_func());
 		llvm::BasicBlock* end = llvm::BasicBlock::Create(
-			m_module->getContext(), "", table.get_func());
+			get_module()->getContext(), "", table.get_func());
 
-		m_builder.CreateBr(cond);
+		get_builder().CreateBr(cond);
 		// 条件判断 begin
-		m_builder.SetInsertPoint(cond);
+		get_builder().SetInsertPoint(cond);
 		auto value = handle(node.get_expr(), table);
-		m_builder.CreateCondBr(value, body, end);
+		get_builder().CreateCondBr(value, body, end);
 		// 条件判断 end
 		// 循环体
-		m_builder.SetInsertPoint(body);
+		get_builder().SetInsertPoint(body);
 		handle(node.get_stmt(), table);
-		m_builder.CreateBr(cond);
+		get_builder().CreateBr(cond);
 		// 循环体 end
-		m_builder.SetInsertPoint(end);
+		get_builder().SetInsertPoint(end);
 		break;
 	}
 	default:
-		m_logger->error("Unkown StmtType");
+		get_logger().error("Unkown StmtType");
 		std::abort();
 	}
 	
-	D_END;
+	
 }
 
 void CodeGenVisitor::handle(const SelectStmt& node, LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 	llvm::BasicBlock* if_then = llvm::BasicBlock::Create(
-		m_module->getContext(), "", table.get_func());
+		get_module()->getContext(), "", table.get_func());
 	llvm::BasicBlock* if_end = llvm::BasicBlock::Create(
-		m_module->getContext(), "", table.get_func());
+		get_module()->getContext(), "", table.get_func());
 
 	auto cmp = handle(node.get_expr(), table);
-	if (!m_cvt_helper->convert_to_bool(cmp->getType()))
+	if (!get_cvt_helper().convert_to_bool(cmp->getType()))
 	{
 		report_in_ast(node, Location::DiagKind::dk_error, "Cannot convert to bool");
-		D_END;
+		
 		return;
 	}
 
 	if (!node.has_else_stmt())
 	{
-		m_builder.CreateCondBr(cmp, if_then, if_end);
-		m_builder.SetInsertPoint(if_then);
+		get_builder().CreateCondBr(cmp, if_then, if_end);
+		get_builder().SetInsertPoint(if_then);
 		handle(node.get_if_stmt(), table);
-		m_builder.CreateBr(if_end);
+		get_builder().CreateBr(if_end);
 	}
 	else
 	{
 		llvm::BasicBlock* if_else = llvm::BasicBlock::Create(
-			m_module->getContext(), "", table.get_func());
-		m_builder.CreateCondBr(cmp, if_then, if_else);
-		m_builder.SetInsertPoint(if_then);
+			get_module()->getContext(), "", table.get_func());
+		get_builder().CreateCondBr(cmp, if_then, if_else);
+		get_builder().SetInsertPoint(if_then);
 		handle(node.get_if_stmt(), table);
-		m_builder.SetInsertPoint(if_else);
+		get_builder().SetInsertPoint(if_else);
 		handle(node.get_else_stmt(), table);
-		m_builder.CreateBr(if_end);
+		get_builder().CreateBr(if_end);
 	}
 
-	D_END;
+	
 }
 
 auto CodeGenVisitor::handle(const Expr& node, LocalSymbolTable& table)
 	-> llvm::Value*
 {
-	D_BEGIN;
+	
 	auto ret = handle(node.get_low_expr(), table);
-	D_END;
+	
 
 	return ret;
 }
@@ -396,7 +376,7 @@ auto CodeGenVisitor::handle(const Expr& node, LocalSymbolTable& table)
 auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 	-> llvm::Value*
 {
-	D_BEGIN;
+	
 
 	llvm::Value* result = nullptr;
 	if (node.has_expr())
@@ -409,13 +389,13 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 
 		if (entry == nullptr)
 		{
-			m_logger->info("User Error Occured in LVal");
+			get_logger().info("User Error Occured in LVal");
 		}
 		else
 		{
 			result = entry->type == SymbolEntry::eval_value ?
 				entry->value :
-				m_builder.CreateLoad(entry->alloca->getAllocatedType(), entry->alloca);
+				get_builder().CreateLoad(entry->alloca->getAllocatedType(), entry->alloca);
 		}
 	}
 	else if (node.has_number())
@@ -425,10 +405,10 @@ auto CodeGenVisitor::handle(const PrimaryExpr& node, LocalSymbolTable& table)
 	
 	if (result == nullptr)
 	{
-		m_logger->info("User Error Occured in PrimaryExpr");
+		get_logger().info("User Error Occured in PrimaryExpr");
 	}
 
-	D_END;
+	
 	return result;
 }
 
@@ -455,7 +435,7 @@ auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 		return func;
 	};
 
-	D_BEGIN;
+	
 	
 	llvm::Value* result = nullptr;
 	switch(node.get_unary_type())
@@ -473,7 +453,7 @@ auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 			return nullptr;
 		auto passing_list = handle(node.get_passing_params(), table);
 
-		m_builder.CreateCall(func, passing_list);
+		get_builder().CreateCall(func, passing_list);
 		break;
 	}
 	case UnaryExpr::call: {
@@ -481,14 +461,14 @@ auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 		if (!func)
 			return nullptr;
 
-		m_builder.CreateCall(func);
+		get_builder().CreateCall(func);
 		break;
 	}
 	default:
 		assert(false && "UnaryExpr has an unkown type");
 	}
 
-	D_END;
+	
 
 	return result;
 }
@@ -496,13 +476,13 @@ auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 auto CodeGenVisitor::handle(const PassingParams& node, LocalSymbolTable& table)
 		-> std::vector<llvm::Value*>
 {
-	D_BEGIN;
+	
 	std::vector<llvm::Value*> result;
 	result.reserve(node.size());
 	result.push_back(handle(node.get_expr(), table));
 	handle(node.get_expr_list(), table, result);
 
-	D_END;
+	
 
 	return result;
 }
@@ -510,7 +490,7 @@ auto CodeGenVisitor::handle(const PassingParams& node, LocalSymbolTable& table)
 auto CodeGenVisitor::handle(const ExprList& node, LocalSymbolTable& table,
 							std::vector<llvm::Value*>& list) -> bool
 {
-	D_BEGIN;
+	
 	for (const auto& expr: node)
 	{
 		auto ret = handle(*expr, table);
@@ -519,24 +499,24 @@ auto CodeGenVisitor::handle(const ExprList& node, LocalSymbolTable& table,
 		list.push_back(ret);
 	}
 
-	D_END;
+	
 
 	return true;
 }
 
 auto CodeGenVisitor::handle(const Number& node) -> llvm::Value*
 {
-	D_BEGIN;
+	
 
-	llvm::Value* result = llvm::ConstantInt::get(m_type_mgr->get_signed_int(),
+	llvm::Value* result = llvm::ConstantInt::get(get_type_mgr().get_signed_int(),
 											 node.get_int_literal());
-	D_END;
+	
 	return result;
 }
 
 void CodeGenVisitor::handle(const Decl& node, LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 
 	if (node.has_const_decl())
 		handle(node.get_const_decl(), table);
@@ -545,30 +525,30 @@ void CodeGenVisitor::handle(const Decl& node, LocalSymbolTable& table)
 	else
 		assert(false && "Unkown type in Decl");
 
-	D_END;
+	
 }
 
 void CodeGenVisitor::handle(const ConstDecl& node, LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 
 	llvm::Type* type = handle(node.get_scalar_type());
 	handle(node.get_first_const_def(), type, table);
 	handle(node.get_const_def_list(), type, table);
 
-	D_END;
+	
 }
 
 void CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
 							LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 
 	auto name_str = handle(node.get_ident());
 
 	llvm::Value* right_value = handle(node.get_const_init_val(), table);
 	
-	auto ret = m_cvt_helper->value_conversion(
+	auto ret = get_cvt_helper().value_conversion(
 		type, right_value->getType()
 	);
 	
@@ -587,35 +567,35 @@ void CodeGenVisitor::handle(const ConstDef& node, llvm::Type* type,
 		return;
 	}
 	
-	D_END;
+	
 }
 
 void CodeGenVisitor::handle(const ConstDefList& node, llvm::Type* type,
 							LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 	for (const auto& const_def_ptr : node )
 	{
 		handle(*const_def_ptr, type, table);
 	}
-	D_END;
+	
 }
 
 auto CodeGenVisitor::handle(const ConstInitVal& node, LocalSymbolTable& table)
 	-> llvm::Value*
 {
-	D_BEGIN;
+	
 	auto ret = handle(node.get_const_expr(), table);
-	D_END;
+	
 	return ret;
 }
 
 auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table)
 	-> llvm::Value*
 {
-	D_BEGIN;
+	
 	auto result = handle(node.get_expr(), table);
-	D_END;
+	
 
 	return result;
 }
@@ -623,7 +603,7 @@ auto CodeGenVisitor::handle(const ConstExpr& node, LocalSymbolTable& table)
 auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
 	-> std::shared_ptr<SymbolEntry>
 {
-	D_BEGIN;
+	
 	auto name = handle(node.get_id());
 	auto entry = table.lookup(name);
 	if (entry == nullptr)
@@ -633,7 +613,7 @@ auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
 		return nullptr;
 	}
 
-	D_END;
+	
 	
 	return entry;
 }
@@ -641,13 +621,13 @@ auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
 auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 	-> llvm::Value*
 {
-	m_logger->debug("UnaryOp[{}] Begin", op.get_type_str());
+	get_logger().debug("UnaryOp[{}] Begin", op.get_type_str());
 	llvm::Value* result = nullptr;
 	llvm::Type* type = operand->getType();
 
 	if (!type->isIntegerTy() && !type->isFloatingPointTy())
 	{
-		m_logger->error("Expected type in UnaryOp");
+		get_logger().error("Expected type in UnaryOp");
 		return nullptr;
 	}
 
@@ -658,9 +638,9 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 		break;
 	case UnaryOp::op_sub:
 		if (type->isIntegerTy())
-			result = m_builder.CreateNeg(operand);
+			result = get_builder().CreateNeg(operand);
 		else 
-			result = m_builder.CreateFNeg(operand);
+			result = get_builder().CreateFNeg(operand);
 		break;
 	/// c语言not操作将操作数转换为int类型
 	case UnaryOp::op_not:
@@ -669,25 +649,25 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 		llvm::Value* is_nonzero = nullptr;
 		if (type->isIntegerTy())
 		{
-			is_nonzero = m_builder.CreateICmpNE(operand, zero);
+			is_nonzero = get_builder().CreateICmpNE(operand, zero);
 		}
 		else
 		{
-			is_nonzero = m_builder.CreateFCmpUNE(operand, zero);
+			is_nonzero = get_builder().CreateFCmpUNE(operand, zero);
 		}
 		llvm::Value* int_value =
-			m_builder.CreateZExt(is_nonzero, m_type_mgr->get_signed_int());
+			get_builder().CreateZExt(is_nonzero, get_type_mgr().get_signed_int());
 
-		result = m_builder.CreateNot(int_value);
+		result = get_builder().CreateNot(int_value);
 		break;
 	}
 	default:
-		m_logger->error("Unkown operation: {}, category: {}",
+		get_logger().error("Unkown operation: {}, category: {}",
 						static_cast<int>(op.get_type()), op.get_type_str());
 		result = nullptr;
 	}
 
-	m_logger->debug("UnaryOp[{}] Begin", op.get_type_str());
+	get_logger().debug("UnaryOp[{}] Begin", op.get_type_str());
 	return result;
 }
 
@@ -704,7 +684,7 @@ template <typename TBinaryExpr>
 auto CodeGenVisitor::handle(const TBinaryExpr& node, LocalSymbolTable& table)
 	-> llvm::Value*
 {
-	D_BEGIN;
+	
 
 	llvm::Value* result = nullptr;
 
@@ -718,14 +698,14 @@ auto CodeGenVisitor::handle(const TBinaryExpr& node, LocalSymbolTable& table)
 		auto left = handle(self_expr_ref.get(), table);
 		if (!left)
 		{
-			m_logger->info("Error happens in {}", self_expr_ref.get().get_kind_str());
-			D_END;
+			get_logger().info("Error happens in {}", self_expr_ref.get().get_kind_str());
+			
 			return nullptr;
 		}
 		auto right = handle(higher_expr_ref.get(), table);
 		if (!right)
 		{
-			m_logger->info("Error happens in {}", higher_expr_ref.get().get_kind_str());
+			get_logger().info("Error happens in {}", higher_expr_ref.get().get_kind_str());
 			return nullptr;
 		}
 
@@ -735,7 +715,7 @@ auto CodeGenVisitor::handle(const TBinaryExpr& node, LocalSymbolTable& table)
 	{
 		assert(false && "Variant has an unkown type");
 	}
-	D_END;
+	
 
 	return result;
 }
@@ -762,7 +742,7 @@ auto CodeGenVisitor::report_conversion_result(const ConversionResult& result,
 auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 									llvm::Value* right) -> llvm::Value*
 {
-	m_logger->debug("{} [{}] Begin:", op.get_kind_str(), op.get_type_str());
+	get_logger().debug("{} [{}] Begin:", op.get_kind_str(), op.get_type_str());
 
 	llvm::Value* result = nullptr;
 	assert(left && right);
@@ -771,47 +751,47 @@ auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 	switch(op.get_type())
 	{
 	case Operator::op_add:
-		result = m_builder.CreateAdd(left, right);
+		result = get_builder().CreateAdd(left, right);
 		break;
 	case Operator::op_sub:
-		result = m_builder.CreateSub(left, right);
+		result = get_builder().CreateSub(left, right);
 		break;
 	case Operator::op_mul:
-		result = m_builder.CreateMul(left, right);
+		result = get_builder().CreateMul(left, right);
 		break;
 	case Operator::op_div:
-		result = m_builder.CreateSDiv(left, right);
+		result = get_builder().CreateSDiv(left, right);
 		break;
 	case Operator::op_mod:
-		result = m_builder.CreateSRem(left, right);
+		result = get_builder().CreateSRem(left, right);
 		break;
 	case Operator::op_lt:
-		result = m_builder.CreateICmpSLT(left, right);
+		result = get_builder().CreateICmpSLT(left, right);
 		break;
 	case Operator::op_le:
-		result = m_builder.CreateICmpSLE(left, right);
+		result = get_builder().CreateICmpSLE(left, right);
 		break;
 	case Operator::op_gt:
-		result = m_builder.CreateICmpSGT(left, right);
+		result = get_builder().CreateICmpSGT(left, right);
 		break;
 	case Operator::op_ge:
-		result = m_builder.CreateICmpSGE(left, right);
+		result = get_builder().CreateICmpSGE(left, right);
 		break;
 	case Operator::op_eq:
-		result = m_builder.CreateICmpEQ(left, right);
+		result = get_builder().CreateICmpEQ(left, right);
 		break;
 	case Operator::op_ne:
-		result = m_builder.CreateICmpNE(left, right);
+		result = get_builder().CreateICmpNE(left, right);
 		break;
 	case Operator::op_land:
-		left = m_builder.CreateTrunc(left, llvm::Type::getInt1Ty(m_module->getContext()));
-		right = m_builder.CreateTrunc(right, llvm::Type::getInt1Ty(m_module->getContext()));
-		result = m_builder.CreateLogicalAnd(left, right);
+		left = get_builder().CreateTrunc(left, llvm::Type::getInt1Ty(get_module()->getContext()));
+		right = get_builder().CreateTrunc(right, llvm::Type::getInt1Ty(get_module()->getContext()));
+		result = get_builder().CreateLogicalAnd(left, right);
 		break;
 	case Operator::op_lor:
-		left = m_builder.CreateTrunc(left, llvm::Type::getInt1Ty(m_module->getContext()));
-		right = m_builder.CreateTrunc(right, llvm::Type::getInt1Ty(m_module->getContext()));
-		result = m_builder.CreateLogicalOr(left, right);
+		left = get_builder().CreateTrunc(left, llvm::Type::getInt1Ty(get_module()->getContext()));
+		right = get_builder().CreateTrunc(right, llvm::Type::getInt1Ty(get_module()->getContext()));
+		result = get_builder().CreateLogicalOr(left, right);
 		break;
 	default:
 		//在二元运算符中
@@ -819,34 +799,34 @@ auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 	}
 
 	assert(result != nullptr);
-	m_builder.CreateZExt(result, m_type_mgr->get_signed_int());
+	get_builder().CreateZExt(result, get_type_mgr().get_signed_int());
 
-	m_logger->debug("{} [{}] End", op.get_kind_str(), op.get_type_str());
+	get_logger().debug("{} [{}] End", op.get_kind_str(), op.get_type_str());
 
 	return result;
 }
 
 void CodeGenVisitor::handle(const VarDecl& node, LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 
 	auto* type = handle(node.get_scalar_type());
 	handle(node.get_var_def(), type, table);
 	handle(node.get_var_def_list(), type, table);
 
-	D_END;
+	
 }
 
 void CodeGenVisitor::handle(const VarDef& node, llvm::Type* type,
 							LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 
 	auto name_str = handle(node.get_ident());
 
 	// 创建一个新的局部变量，分配内存
 	llvm::AllocaInst* alloca_inst =
-		new llvm::AllocaInst(type, 0, name_str, m_builder.GetInsertBlock());
+		new llvm::AllocaInst(type, 0, name_str, get_builder().GetInsertBlock());
 
 	if (node.is_initialized())
 	{
@@ -855,38 +835,38 @@ void CodeGenVisitor::handle(const VarDef& node, llvm::Type* type,
 		auto right_value = handle(node.get_init_val(), table);
 		// 判断隐式类型转换是否合法
 		cvt_result =
-			m_cvt_helper->value_conversion(type, right_value->getType());
+			get_cvt_helper().value_conversion(type, right_value->getType());
 		auto left_type = report_conversion_result(cvt_result, node);
 		if (left_type == nullptr)
 			return;
 
-		m_builder.CreateStore(right_value, alloca_inst);
+		get_builder().CreateStore(right_value, alloca_inst);
 	}
 	// 在符号表中添加对应条目
 	auto entry = std::make_shared<SymbolEntry>(alloca_inst);
 	table.insert(name_str, entry);
 
-	D_END;
+	
 }
 
 void CodeGenVisitor::handle(const VarDefList& node, llvm::Type* type,
 							LocalSymbolTable& table)
 {
-	D_BEGIN;
+	
 	for (const auto& ptr : node)
 	{
 		handle(*ptr, type, table);
 	}
 
-	D_END;
+	
 }
 
 auto CodeGenVisitor::handle(const InitVal& node, LocalSymbolTable& table)
 	-> llvm::Value*
 {
-	D_BEGIN;
+	
 	auto result = handle(node.get_expr(), table);
-	D_END;
+	
 
 	return result;
 }
@@ -894,7 +874,7 @@ auto CodeGenVisitor::handle(const InitVal& node, LocalSymbolTable& table)
 void CodeGenVisitor::report_in_ast(const BaseAST& node, Location::DiagKind kind,
 								   std::string_view msg)
 {
-	node.report(kind, msg, &m_src_mgr);
+	node.report(kind, msg, &get_src_mgr());
 }
 
 }	//namespace toycc

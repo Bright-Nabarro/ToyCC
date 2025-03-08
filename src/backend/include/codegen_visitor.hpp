@@ -1,36 +1,19 @@
 #pragma once
+#include "codegen_context.hpp"
 
 #include "ast.hpp"
-#include "type_mgr.hpp"
-#include "conversion.hpp"
 #include "symbol_table.hpp"
-#include <memory>
-#include <expected>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/Target/TargetMachine.h>
-#include <llvm/Support/SourceMgr.h>
-#include <spdlog/async.h>
 
 namespace toycc
 {
 
-class CodeGenVisitor: public ASTVisitor
+class CodeGenVisitor: public ASTVisitor, public CGContextInterface
 {
 public:
-	CodeGenVisitor(llvm::LLVMContext& context,
-				   std::shared_ptr<ConversionHelper> cvt_helper,
-				   llvm::SourceMgr& src_mgr, llvm::TargetMachine* tm,
-				   std::shared_ptr<spdlog::async_logger> logger);
+	CodeGenVisitor(std::shared_ptr<CodeGenContext> cg_context);
 	/// @note 只支持从根节点翻译
 	[[nodiscard]]
 	auto visit(BaseAST* ast) -> std::expected<void, std::string> override;
-
-	/// @brief 在语法解析后获取结果
-	[[nodiscard]]
-	auto get_module() -> std::unique_ptr<llvm::Module>
-	{ return std::move(m_module); }
 
 private:
 	using SymbolTable = std::unordered_map<std::string_view, llvm::Value*>;
@@ -108,15 +91,6 @@ private:
 					   std::string_view msg);
 
 private:
-	std::unique_ptr<llvm::Module> m_module;
-	llvm::IRBuilder<> m_builder;
-	std::shared_ptr<TypeMgr> m_type_mgr;
-	std::shared_ptr<ConversionHelper> m_cvt_helper;
-
-	llvm::SourceMgr& m_src_mgr;
-	llvm::TargetMachine* m_target_machine;
-	std::shared_ptr<spdlog::async_logger> m_logger;
-
 	std::shared_ptr<GlobalSymbolTable> m_global_table;
 };
 

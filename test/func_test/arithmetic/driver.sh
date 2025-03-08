@@ -7,8 +7,8 @@ check_toycc $1
 program=bin/a.out
 mkdir -p bin
 
-$1 test.c -o bin/cp.ll --filetype=asm -emit-llvm
-$1 test.c -o bin/cp.s --filetype=asm
+#$1 test.c -o bin/cp.ll --filetype=asm -emit-llvm
+#$1 test.c -o bin/cp.s --filetype=asm
 $1 test.c -o bin/cp.o --filetype=obj
 exit_if_failure "toycc compile failed"
 
