@@ -90,20 +90,18 @@ void CodeGenVisitor::handle(const Module& node)
 
 void CodeGenVisitor::handle(const FuncDef& node)
 {
-	D_BEGIN;
 	auto return_type = handle(node.get_type());
 	auto func_name = handle(node.get_ident());
-	auto param_types = handle(node.get_paramlist());
-
+	auto [ param_names, param_types ] = handle(node.get_paramlist());
+																	/* 不是可变类型 */
 	auto func_type = llvm::FunctionType::get(return_type, param_types, false);
 
 	auto func =
 		llvm::Function::Create(func_type, llvm::GlobalValue::ExternalLinkage,
 							   func_name, m_module.get());
 
-	create_basic_block(node.get_block(), func, "entry");
+	create_basic_block(node.get_block(), func, "entry", param_names);
 
-	D_END;
 }
 
 auto CodeGenVisitor::handle(const BuiltinType& node) -> llvm::Type*
@@ -154,43 +152,65 @@ auto CodeGenVisitor::handle(const ScalarType& node) -> llvm::Type*
 
 auto CodeGenVisitor::handle(const Ident& node) -> std::string_view
 {
-	D_BEGIN;
 	std::string_view name = node.get_value();
-	D_END;
 	return name;
 }
 
-auto CodeGenVisitor::handle(const ParamList& node) -> std::vector<llvm::Type*>
+auto CodeGenVisitor::handle(const ParamList& node)
+		-> std::pair<std::vector<std::string_view>, std::vector<llvm::Type*>>
 {
-	D_BEGIN;
+	std::vector<std::string_view> names;
 	std::vector<llvm::Type*> type_list;
+
 	type_list.reserve(node.get_params().size());
+	names.reserve(node.get_params().size());
 
 	for (const auto& param : node)
 	{
 		assert(param != nullptr);
-		type_list.push_back(handle(*param));
+		auto [name, type] = handle(*param);
+		names.push_back(name);
+		type_list.push_back(type);
 	}
-	D_END;
 
-	return type_list;
+	return { names, type_list };
 }
 
 auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
-							std::string_view block_name) -> llvm::BasicBlock*
+										std::string_view block_name,
+										std::span<std::string_view> param_names)
+	-> llvm::BasicBlock*
 {
-	D_BEGIN;
-
 	auto basic_block =
 		llvm::BasicBlock::Create(m_module->getContext(), block_name.data(), func);
+
+	llvm::Function::arg_iterator args_itr = func->arg_begin();
+	std::vector<llvm::Value*> arg_values(func->arg_size());
+	assert(arg_values.size() == param_names.size());
+
+	for (auto& arg : arg_values)
+	{
+		arg = &*args_itr;
+		++args_itr;
+	}
+	assert(args_itr == func->arg_end());
+	
+	m_builder.SetInsertPoint(basic_block);
 
 	// 局部符号表
 	LocalSymbolTable table(func, m_global_table);
 
-	m_builder.SetInsertPoint(basic_block);
+	for (std::size_t i = 0; i < param_names.size(); ++i)
+	{
+		llvm::Type* type = arg_values[i]->getType();
+		llvm::AllocaInst* alloca = m_builder.CreateAlloca(type);
+		m_builder.CreateStore(arg_values[i], alloca);
+		auto entry = std::make_shared<SymbolEntry>(alloca);
+		table.insert(param_names[i], entry);
+	}
+
 	handle(node.get_block_item_list(), table);
 
-	D_END;
 	return basic_block;
 }
 
@@ -291,44 +311,7 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 	}
 	case Stmt::if_stmt:
 	{
-		llvm::BasicBlock* if_then = llvm::BasicBlock::Create(
-			m_module->getContext(), "", table.get_func());
-		llvm::BasicBlock* if_end = llvm::BasicBlock::Create(
-			m_module->getContext(), "", table.get_func());
-
-		auto cmp = handle(node.get_expr(), table);
-		if (!m_cvt_helper->convert_to_bool(cmp->getType()))
-		{
-			report_in_ast(node, Location::DiagKind::dk_error, "Cannot convert to bool");
-			break;
-		}
-
-		const auto& stmts = node.get_stmts();
-
-		if (stmts.size() == 1) // if 语句
-		{
-			m_builder.CreateCondBr(cmp, if_then, if_end);
-			m_builder.SetInsertPoint(if_then);
-			handle(*stmts.front(), table);
-			m_builder.CreateBr(if_end);
-		}
-		else if(stmts.size() == 2) // if else 语句
-		{
-			llvm::BasicBlock* if_else = llvm::BasicBlock::Create(
-				m_module->getContext(), "", table.get_func());
-			m_builder.CreateCondBr(cmp, if_then, if_else);
-			m_builder.SetInsertPoint(if_then);
-			handle(*stmts[0], table);
-			m_builder.SetInsertPoint(if_else);
-			handle(*stmts[1], table);
-			m_builder.CreateBr(if_end);
-		}
-		else
-		{
-			assert(false);
-		}
-
-		m_builder.SetInsertPoint(if_end);
+		handle(node.get_select_stmt(), table);
 		break;
 	}
 	case Stmt::while_stmt:
@@ -348,9 +331,7 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 		// 条件判断 end
 		// 循环体
 		m_builder.SetInsertPoint(body);
-		const auto& stmt_body = node.get_stmts();
-		assert(stmt_body.size() == 1);
-		handle(*stmt_body.front(), table);
+		handle(node.get_stmt(), table);
 		m_builder.CreateBr(cond);
 		// 循环体 end
 		m_builder.SetInsertPoint(end);
@@ -361,6 +342,44 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 		std::abort();
 	}
 	
+	D_END;
+}
+
+void CodeGenVisitor::handle(const SelectStmt& node, LocalSymbolTable& table)
+{
+	D_BEGIN;
+	llvm::BasicBlock* if_then = llvm::BasicBlock::Create(
+		m_module->getContext(), "", table.get_func());
+	llvm::BasicBlock* if_end = llvm::BasicBlock::Create(
+		m_module->getContext(), "", table.get_func());
+
+	auto cmp = handle(node.get_expr(), table);
+	if (!m_cvt_helper->convert_to_bool(cmp->getType()))
+	{
+		report_in_ast(node, Location::DiagKind::dk_error, "Cannot convert to bool");
+		D_END;
+		return;
+	}
+
+	if (!node.has_else_stmt())
+	{
+		m_builder.CreateCondBr(cmp, if_then, if_end);
+		m_builder.SetInsertPoint(if_then);
+		handle(node.get_if_stmt(), table);
+		m_builder.CreateBr(if_end);
+	}
+	else
+	{
+		llvm::BasicBlock* if_else = llvm::BasicBlock::Create(
+			m_module->getContext(), "", table.get_func());
+		m_builder.CreateCondBr(cmp, if_then, if_else);
+		m_builder.SetInsertPoint(if_then);
+		handle(node.get_if_stmt(), table);
+		m_builder.SetInsertPoint(if_else);
+		handle(node.get_else_stmt(), table);
+		m_builder.CreateBr(if_end);
+	}
+
 	D_END;
 }
 
@@ -672,14 +691,12 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 	return result;
 }
 
-auto CodeGenVisitor::handle(const Param& node) -> llvm::Type*
+auto CodeGenVisitor::handle(const Param& node) -> std::pair<std::string_view, llvm::Type*>
 {
-	D_BEGIN;
+	auto name = handle(node.get_ident());
 	auto type = handle(node.get_type());
-	handle(node.get_ident());
-	D_END;
 
-	return type;
+	return { name, type };
 }
 
 template <typename TBinaryExpr>
@@ -699,8 +716,19 @@ auto CodeGenVisitor::handle(const TBinaryExpr& node, LocalSymbolTable& table)
 	{
 		auto [self_expr_ref, op, higher_expr_ref ] = node.get_combined_expr();
 		auto left = handle(self_expr_ref.get(), table);
+		if (!left)
+		{
+			m_logger->info("Error happens in {}", self_expr_ref.get().get_kind_str());
+			D_END;
+			return nullptr;
+		}
 		auto right = handle(higher_expr_ref.get(), table);
-		
+		if (!right)
+		{
+			m_logger->info("Error happens in {}", higher_expr_ref.get().get_kind_str());
+			return nullptr;
+		}
+
 		result = binary_operate(left, op, right);
 	}
 	else
@@ -737,6 +765,7 @@ auto CodeGenVisitor::binary_operate(llvm::Value* left, const Operator& op,
 	m_logger->debug("{} [{}] Begin:", op.get_kind_str(), op.get_type_str());
 
 	llvm::Value* result = nullptr;
+	assert(left && right);
 	assert(left->getType() == right->getType());
 	
 	switch(op.get_type())

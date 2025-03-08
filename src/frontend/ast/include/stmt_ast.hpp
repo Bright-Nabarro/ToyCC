@@ -51,7 +51,7 @@ public:
 		expression,
 		block,
 		func_return,
-		if_stmt,	// stmt的存储顺序以第一个if语句为开始，按顺序存储
+		if_stmt,
 		while_stmt,
 	};
 	Stmt(std::unique_ptr<Location> location, StmtType type);
@@ -69,7 +69,7 @@ public:
 		std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> stmt);
 
 	Stmt(std::unique_ptr<Location> location, StmtType type,
-		std::unique_ptr<Expr> expr, std::unique_ptr<SelectStmt> select_stmt);
+		 std::unique_ptr<SelectStmt> select_stmt);
 
 	~Stmt();
 

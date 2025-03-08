@@ -93,9 +93,9 @@ Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
 
 
 Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
-	std::unique_ptr<Expr> expr, std::unique_ptr<SelectStmt> select_stmt)
+	std::unique_ptr<SelectStmt> select_stmt)
 	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
-	  m_expr{std::move(expr)}, m_block{}, m_stmt {},
+	  m_block{}, m_stmt {},
 	  m_select_stmt { std::move(select_stmt) }
 {
 	assert(type == StmtType::if_stmt);
@@ -322,13 +322,13 @@ Module::Module(std::unique_ptr<Location> location,
 
 auto Module::get_func_def() const -> const FuncDef&
 {
-	assert(!m_func_def);
+	assert(m_func_def);
 	return *m_func_def;
 }
 
 auto Module::get_module() const -> const Module&
 {
-	assert(!m_comp_unit);
+	assert(m_comp_unit);
 	return *m_comp_unit;
 }
 

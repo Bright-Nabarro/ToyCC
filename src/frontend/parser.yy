@@ -121,6 +121,8 @@ namespace toycc { class Driver; }
 %nterm <std::unique_ptr<toycc::LAndOp>>			LAndOp
 %nterm <std::unique_ptr<toycc::LOrOp>>			LOrOp
 
+%precedence PRE_LOWER_THEN_ELSE
+%precedence PRE_ELSE
 
 %%
 
@@ -384,13 +386,14 @@ Stmt
 			toycc::Stmt::if_stmt, std::move($1));
 	};
 
+
 SelectStmt:
-	 KW_IF "(" Expr ")" Stmt {
+	 KW_IF "(" Expr ")" Stmt PRE_LOWER_THEN_ELSE {
 		$$ = std::make_unique<toycc::SelectStmt>(CONSTRUCT_LOCATION(@$),
 			std::move($3), std::move($5));
 	}
 	// 1     2   3    4   5     6      7
-	| KW_IF "(" Expr ")" Stmt KW_ELSE Stmt {
+	| KW_IF "(" Expr ")" Stmt KW_ELSE Stmt PRE_ELSE {
 		$$ = std::make_unique<toycc::SelectStmt>(CONSTRUCT_LOCATION(@$),
 			std::move($3), std::move($5), std::move($7));
 	}

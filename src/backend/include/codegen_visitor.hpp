@@ -42,17 +42,18 @@ private:
 	auto handle(const BuiltinType& node) -> llvm::Type*;
 	auto handle(const ScalarType& node) -> llvm::Type*;
 
-	auto handle(const ParamList& node) -> std::vector<llvm::Type*>;
+	auto handle(const ParamList& node)
+		-> std::pair<std::vector<std::string_view>, std::vector<llvm::Type*>>;
 
 	auto create_basic_block(const Block& node, llvm::Function* func,
-				std::string_view block_name) -> llvm::BasicBlock*;
+				std::string_view block_name, std::span<std::string_view> param_names) -> llvm::BasicBlock*;
 	// 不创建新块的情况
 	void handle(const Block& node, LocalSymbolTable& upper_table);
 
 	void handle(const BlockItemList& node, LocalSymbolTable& table);
 	void handle(const BlockItem& node, LocalSymbolTable& table);
 	
-	auto handle(const Param& node) -> llvm::Type*;
+	auto handle(const Param& node) -> std::pair<std::string_view, llvm::Type*>;
 
 	auto handle(const Number& num) -> llvm::Value*;
 	auto handle(const Ident& node) -> std::string_view;
@@ -61,6 +62,7 @@ private:
 	void handle(const ConstDecl& node, LocalSymbolTable& table);
 
 	void handle(const Stmt& node, LocalSymbolTable& table);
+	void handle(const SelectStmt& node, LocalSymbolTable& table);
 	auto handle(const Expr& expr, LocalSymbolTable& table) -> llvm::Value*;
 	auto handle(const PrimaryExpr& node, LocalSymbolTable& table)
 		-> llvm::Value*;
