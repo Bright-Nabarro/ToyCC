@@ -5,8 +5,10 @@
 AST_KIND(ast_number, "Number")
 AST_KIND(ast_ident, "Identifier")
 
+AST_KIND(ast_passing_params, "Passing Params")
 // Exprations
 AST_KIND(ast_expr, "Expression")
+AST_KIND(ast_expr_list, "Expression List")
 AST_KIND(ast_const_expr, "Constant Expression")
 AST_KIND(ast_primary_expr, "Primary Expression")
 AST_KIND(ast_unary_expr, "Unary Expression") //Level 2 Expression
@@ -42,6 +44,7 @@ AST_KIND(ast_var_def_list, "Variable Definition List")
 AST_KIND(ast_init_val, "Initialization Value")
 
 AST_KIND(ast_stmt, "Statement")
+AST_KIND(ast_select_stmt, "Selection Statement")
 
 AST_KIND(ast_block, "Block Statement")
 AST_KIND(ast_block_item_list, "Block Item List")
@@ -55,6 +58,7 @@ AST_KIND(ast_param, "Parameter")
 AST_KIND(ast_paramlist, "Parameter List")
 AST_KIND(ast_funcdef, "Function Definition")
 
+AST_KIND(ast_module, "Recursive Unit Organizer")
 AST_KIND(ast_comunit, "Commpilation Unit")
 
 

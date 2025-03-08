@@ -11,16 +11,15 @@ namespace toycc
 class CompUnit: public BaseAST
 {
 public:
-	TOYCC_AST_FILL_CLASSOF(ast_comunit)
-	CompUnit(std::unique_ptr<Location> location, std::unique_ptr<FuncDef> func_def);
+	TOYCC_AST_FILL_CLASSOF(ast_comunit);
+	CompUnit(std::unique_ptr<Location> location,
+			 std::unique_ptr<Module> module);
 
 	[[nodiscard]]
-	auto get_func_def() const -> const FuncDef&;
-
+	auto get_module() const -> const Module&;
 private:
-	std::unique_ptr<FuncDef> m_func_def;
+	std::unique_ptr<Module> m_module;
 };
-
 
 #undef BINARY_EXPR_FILL_CONSTRUCTORS
 

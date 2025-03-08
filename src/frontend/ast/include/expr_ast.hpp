@@ -37,6 +37,35 @@ private:
 };
 
 
+class ExprList: public BaseAST
+{
+public:
+	TOYCC_AST_FILL_CLASSOF(ast_expr_list);
+	using Vector = std::vector<std::unique_ptr<Expr>>;
+	ExprList(std::unique_ptr<Location> location);
+	ExprList(std::unique_ptr<Location> location,
+			 std::unique_ptr<ExprList> expr_list,
+			 std::unique_ptr<Expr> expr);
+	
+	[[nodiscard]]
+	auto get_expr_list() const -> const Vector&;
+	
+	[[nodiscard]]
+	auto begin() const -> Vector::const_iterator
+	{ return m_expr_list.cbegin(); }
+
+	[[nodiscard]]
+	auto end() const -> Vector::const_iterator
+	{ return m_expr_list.cend(); }
+
+	[[nodiscard]]
+	auto size() const -> std::size_t
+	{ return m_expr_list.size(); }
+private:
+	Vector m_expr_list;
+};
+
+
 /**
  * ConstInitVal 	::= ConstExpr;
  */
@@ -102,35 +131,71 @@ private:
 };
 
 
+class PassingParams: public BaseAST
+{
+public:
+	TOYCC_AST_FILL_CLASSOF(ast_passing_params);
+	PassingParams(std::unique_ptr<Location> location,
+				  std::unique_ptr<Expr> expr,
+				  std::unique_ptr<ExprList> expr_list);
+	auto size() const -> std::size_t;
+	auto get_expr() const -> const Expr&;
+	auto get_expr_list() const -> const ExprList&;
+private:
+	std::unique_ptr<Expr> m_expr;
+	std::unique_ptr<ExprList> m_expr_list;
+};
+
+
 /**
  * UnaryExpr ::= PrimaryExpr | UnaryOp UnaryExpr;
  */
 class UnaryExpr: public BaseExpr
 {
 public:
-	using PrmExpPtr = std::unique_ptr<PrimaryExpr>;
-	using PackPtr = std::pair<std::unique_ptr<UnaryOp>, std::unique_ptr<UnaryExpr>>;
-	using Variant = std::variant<PrmExpPtr, PackPtr>;
+	enum UnaryType
+	{
+		primary_expr,
+		unary_op,
+		call,
+		call_with_params,
+	};
 
-	TOYCC_AST_FILL_CLASSOF(ast_unary_expr);
-
-	UnaryExpr(std::unique_ptr<Location> location, PrmExpPtr primary_expr);
-	UnaryExpr(std::unique_ptr<Location> location, std::unique_ptr<UnaryOp> unary_op,
-			std::unique_ptr<UnaryExpr> unary_expr);
+	UnaryExpr(std::unique_ptr<Location> location,
+			  UnaryType type,
+			  std::unique_ptr<PrimaryExpr> primary_expr);
+	UnaryExpr(std::unique_ptr<Location> location,
+			  UnaryType type,
+			  std::unique_ptr<UnaryOp> unary_op,
+			  std::unique_ptr<UnaryExpr> unary_expr);
+	UnaryExpr(std::unique_ptr<Location> location,
+			  UnaryType type,
+			  std::unique_ptr<Ident> ident);
+	UnaryExpr(std::unique_ptr<Location> location,
+			  UnaryType type,
+			  std::unique_ptr<Ident> ident,
+			  std::unique_ptr<PassingParams> passing_param);
 
 	[[nodiscard]]
-	auto has_primary_expr() const -> bool;
-	[[nodiscard]]
-	auto has_unary_expr() const -> bool;
+	auto get_unary_type() const -> UnaryType;
 	[[nodiscard]]
 	auto get_primary_expr() const -> const PrimaryExpr&;
 	[[nodiscard]]
 	auto get_unary_op() const -> const UnaryOp&;
 	[[nodiscard]]
 	auto get_unary_expr() const -> const UnaryExpr&;
+	[[nodiscard]]
+	auto get_ident() const -> const Ident&;
+	[[nodiscard]]
+	auto get_passing_params() const -> const PassingParams&;
 
 private:
-	Variant m_value;
+	UnaryType m_type;
+	std::unique_ptr<PrimaryExpr> m_primary_expr;
+	std::unique_ptr<UnaryOp> m_unary_op;
+	std::unique_ptr<UnaryExpr> m_unary_expr;
+	std::unique_ptr<Ident> m_ident;
+	std::unique_ptr<PassingParams> m_passing_params;
 };
 
 

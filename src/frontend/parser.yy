@@ -76,7 +76,9 @@ namespace toycc { class Driver; }
 %nterm <std::unique_ptr<toycc::Ident>>			Ident
 %nterm <std::unique_ptr<toycc::LVal>>			LVal
 //语句
+%nterm <std::unique_ptr<toycc::Module>>			Module
 %nterm <std::unique_ptr<toycc::Stmt>>			Stmt
+%nterm <std::unique_ptr<toycc::SelectStmt>>		SelectStmt
 %nterm <std::unique_ptr<toycc::Decl>>			Decl
 %nterm <std::unique_ptr<toycc::Block>>			Block
 %nterm <std::unique_ptr<toycc::BlockItemList>>	BlockItemList
@@ -99,7 +101,9 @@ namespace toycc { class Driver; }
 %nterm <std::unique_ptr<toycc::ParamList>>		ParamList
 %nterm <std::unique_ptr<toycc::FuncDef>>		FuncDef
 // expr
+%nterm <std::unique_ptr<toycc::PassingParams>>	PassingParams
 %nterm <std::unique_ptr<toycc::Expr>>			Expr
+%nterm <std::unique_ptr<toycc::ExprList>>		ExprList
 %nterm <std::unique_ptr<toycc::UnaryExpr>>		UnaryExpr
 %nterm <std::unique_ptr<toycc::PrimaryExpr>>	PrimaryExpr
 %nterm <std::unique_ptr<toycc::L3Expr>> 		L3Expr
@@ -117,21 +121,42 @@ namespace toycc { class Driver; }
 %nterm <std::unique_ptr<toycc::LAndOp>>			LAndOp
 %nterm <std::unique_ptr<toycc::LOrOp>>			LOrOp
 
+%precedence PRE_LOWER_THEN_ELSE
+%precedence PRE_ELSE
 
 %%
 
 %start CompUnit;
 
-CompUnit:
+CompUnit: Module 
+	{
+		auto comp_unit_ptr = std::make_unique<toycc::CompUnit>(
+			CONSTRUCT_LOCATION(@$), std::move($1));
+		driver.set_ast(std::move(comp_unit_ptr));
+	};
+
+Module:
 	FuncDef 
 	{
-		//llvm::isa足够智能，能够区分裸指针和智能指针的情况
-		assert_same_ptr(toycc::FuncDef, $1);
-		std::unique_ptr<toycc::Location> location =
-			CONSTRUCT_LOCATION(@$);
-		auto comp_unit_ptr =
-			std::make_unique<toycc::CompUnit>(std::move(location), std::move($1));
-		driver.set_ast(std::move(comp_unit_ptr));
+		$$ = std::make_unique<toycc::Module>(CONSTRUCT_LOCATION(@$),
+			toycc::Module::extern_func,
+			std::move($1));
+	}
+	| Module FuncDef
+	{
+		$$ = std::make_unique<toycc::Module>(CONSTRUCT_LOCATION(@$),
+			toycc::Module::extern_func,
+			std::move($1), std::move($2));
+	}
+	| Module Ident {
+		$$ = std::make_unique<toycc::Module>(CONSTRUCT_LOCATION(@$),
+			toycc::Module::extern_global_variable,
+			std::move($1), std::move($2));
+	}
+	| Ident {
+		$$ = std::make_unique<toycc::Module>(CONSTRUCT_LOCATION(@$),
+			toycc::Module::extern_global_variable,
+			std::move($1));
 	};
 
 FuncDef :
@@ -351,21 +376,27 @@ Stmt
 		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
 			toycc::Stmt::block, std::move($1));
 	}
-	| KW_IF "(" Expr ")" Stmt {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::if_stmt, std::move($3), std::move($5));
-	}
-	// 1     2   3    4   5     6      7
-	| KW_IF "(" Expr ")" Stmt KW_ELSE Stmt {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::if_stmt, std::move($3), std::move($5), std::move($7));
-	}
 	// 1 		2	3	 4	 5
 	| KW_WHILE "(" Expr ")" Stmt {
 		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::if_stmt, std::move($3), std::move($5));
+			toycc::Stmt::while_stmt, std::move($3), std::move($5));
+	}
+	| SelectStmt {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			toycc::Stmt::if_stmt, std::move($1));
 	};
 
+
+SelectStmt:
+	 KW_IF "(" Expr ")" Stmt PRE_LOWER_THEN_ELSE {
+		$$ = std::make_unique<toycc::SelectStmt>(CONSTRUCT_LOCATION(@$),
+			std::move($3), std::move($5));
+	}
+	// 1     2   3    4   5     6      7
+	| KW_IF "(" Expr ")" Stmt KW_ELSE Stmt PRE_ELSE {
+		$$ = std::make_unique<toycc::SelectStmt>(CONSTRUCT_LOCATION(@$),
+			std::move($3), std::move($5), std::move($7));
+	}
 Expr
 	: LOrExpr {
 		assert_same_ptr(toycc::LOrExpr, $1);
@@ -390,12 +421,36 @@ PrimaryExpr
 UnaryExpr
 	: PrimaryExpr {
 		assert_same_ptr(toycc::PrimaryExpr, $1);
-		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1));
+		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
+			toycc::UnaryExpr::primary_expr, std::move($1));
 	}
 	| UnaryOp UnaryExpr {
 		assert_same_ptr(toycc::UnaryOp, $1);
 		assert_same_ptr(toycc::UnaryExpr, $2);
-		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($2));
+		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
+			toycc::UnaryExpr::unary_op, std::move($1), std::move($2));
+	}
+	| Ident "(" ")" {
+		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
+			toycc::UnaryExpr::call, std::move($1));
+	}
+	| Ident "(" PassingParams ")" {
+		$$ = std::make_unique<toycc::UnaryExpr>(CONSTRUCT_LOCATION(@$),
+			toycc::UnaryExpr::call_with_params, std::move($1), std::move($3));
+	};
+
+PassingParams
+	: Expr ExprList {
+		$$ = std::make_unique<toycc::PassingParams>(CONSTRUCT_LOCATION(@$),
+			std::move($1), std::move($2));
+	};
+
+ExprList
+	: /*empty*/ {
+		$$ = std::make_unique<toycc::ExprList>(CONSTRUCT_LOCATION(@$));
+	}
+	| ExprList "," Expr {
+		$$ = std::make_unique<toycc::ExprList>(CONSTRUCT_LOCATION(@$), std::move($1), std::move($3));
 	};
 
 UnaryOp

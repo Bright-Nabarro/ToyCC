@@ -3,34 +3,41 @@
 namespace toycc
 {
 
+auto GlobalSymbolTable::find(std::string_view name)
+	-> std::shared_ptr<SymbolEntry>
+{
+	auto itr = m_table.find(name);
+	if (itr == m_table.end())
+		return nullptr;
+	return itr->second;
+}
+
+auto GlobalSymbolTable::insert(std::string_view name,
+							   std::shared_ptr<SymbolEntry> entry) -> bool
+{
+	auto [ _, success ] = m_table.emplace(name, entry);
+	return success;
+}
+
 LocalSymbolTable::LocalSymbolTable(LocalSymbolTable* upper_table):
 	m_upper { upper_table }, m_func { upper_table->m_func }
 {
 	assert(upper_table->m_func != nullptr);
 }
 
-LocalSymbolTable::LocalSymbolTable(llvm::Function* func):
-	m_upper { nullptr }, m_func { func }
+LocalSymbolTable::LocalSymbolTable(llvm::Function* func,
+								   std::shared_ptr<GlobalSymbolTable> global)
+	: m_upper{nullptr}, m_func{func}, m_global_table { global }
 {
 }
 
-auto LocalSymbolTable::insert(std::string_view name, llvm::Value* value) -> bool
+auto LocalSymbolTable::insert(std::string_view name,
+							  std::shared_ptr<SymbolEntry> entry) -> bool
 {
-	auto entry = std::make_shared<SymbolEntry>(value);
 	auto [_, success] = m_table.emplace(name, entry);
 
 	return success;
 }
-
-
-auto LocalSymbolTable::insert(std::string_view name, llvm::AllocaInst* alloca) -> bool
-{
-	auto entry = std::make_shared<SymbolEntry>(alloca);
-	auto [_, success] = m_table.emplace(name, entry);
-
-	return success;
-}
-
 
 [[nodiscard]]
 auto LocalSymbolTable::lookup(std::string_view sv, bool search_this_level)
@@ -46,7 +53,7 @@ auto LocalSymbolTable::lookup(std::string_view sv, bool search_this_level)
 		}
 	}
 	
-	return nullptr;
+	return m_global_table->find(sv);
 }
 
 }	//namespace toycc

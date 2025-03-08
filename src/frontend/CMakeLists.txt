@@ -13,7 +13,8 @@ string(REPLACE ".yy" ".bison.cpp" bison_output ${bison_file})
 set(output_header ${CMAKE_CURRENT_BINARY_DIR}/bison_parser.hpp)
 flex_target(lexer ${flex_file} ${flex_output})
 bison_target(parser ${bison_file} ${bison_output}
-	DEFINES_FILE ${output_header})
+	DEFINES_FILE ${output_header}
+	COMPILE_FLAGS "-v -Wcounterexamples")
 
 add_flex_bison_dependency(lexer parser)
 

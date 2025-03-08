@@ -1,5 +1,9 @@
 # 开始符
-CompUnit    ::= FuncDef;
+CompUnit    ::= Module
+Module 		::= Module Decl
+			| 	Decl
+			|	Module FuncDef
+			|	FuncDef;
 
 # 函数定义与返回类型
 	[只有外部链接] FuncDef     ::= BuiltinType Ident "(" ParamList ")" Block;
@@ -36,15 +40,19 @@ BlockItem		::= Decl | Stmt;
 LVal			::= Ident;
 
 # 语句
-Stmt        	::= LVal "=" Expr								// assign
-				| Expr ";" | /*empty*/ ";"						// expression
-				| Block											// block
-				| "return" Expr ";" 							// return
-				| "return" /*empty*/ ";" 						// return
-				| "if" "(" Expr ")" Stmt						// if_stmt
-				| "if" "(" Expr ")" Stmt "else" Stmt			// if_stmt
-				| "while" "(" Expr ")" Stmt						// while_stmt
+Stmt        	::= LVal "=" Expr								# assign
+				| Expr ";" | /*empty*/ ";"						# expression
+				| Block											# block
+				| "return" Expr ";" 							# return
+				| "return" /*empty*/ ";" 						# return
+				| "while" "(" Expr ")" Stmt						# while_stmt
+				| SelectStmt									# if_stmt
 				;
+
+SelectStmt		::= "if" "(" Expr ")" Stmt						# if_stmt
+				|   "if" "(" Expr ")" Stmt "else" Stmt			# if_stmt
+				;
+
 ConstExpr		::= Expr;
 Expr        	::= LOrExpr;
 
@@ -52,7 +60,14 @@ Expr        	::= LOrExpr;
 # https://zh.cppreference.com/w/c/language/operator_precedence
 PrimaryExpr ::= "(" Expr ")" | Number | LVal;
 ## 2 一元表达式
-UnaryExpr   ::= PrimaryExpr | UnaryOp UnaryExpr;
+UnaryExpr   ::= PrimaryExpr					# primary_expr
+			| UnaryOp UnaryExpr				# unary_op
+			| IDENT "(" ")"					# call
+			| IDENT "(" PassingParams ")";	# call_with_params
+
+PassingParams ::= Expr ExprList;
+ExprList ::= /* empty */ | ExprList "," Expr
+
 	[只支持int] UnaryOp     ::= "+" | "-" | "!";
 ## 3 乘，除，取余表达式
 L3Expr      ::= UnaryExpr | L3Expr L3Op UnaryExpr;
