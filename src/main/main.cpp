@@ -137,10 +137,10 @@ auto backend_procedure(std::shared_ptr<toycc::CodeGenContext> cgc, auto ast)
 {
 	toycc::CodeGenVisitor visitor{cgc};
 
-	auto void_or_error = visitor.visit(ast.get());
-	if (!void_or_error)
+	auto success = visitor.visit(ast.get());
+	if (!success)
 	{
-		cgc->get_logger().error("{}", void_or_error.error());
+		llvm::errs() << "Error happens, terminate compile\n";
 		return nullptr;
 	}
 
@@ -185,7 +185,7 @@ auto main(int argc, char* argv[]) -> int
 	auto ast = frontend_procedure(src_mgr, input_file.getValue(), global_sink);
 	if (ast == nullptr)
 	{
-		backend_logger->error("frontend procedure error");
+		backend_logger->info("frontend procedure detected user error");
 		return 1;
 	}
 
@@ -193,7 +193,7 @@ auto main(int argc, char* argv[]) -> int
 	auto module = backend_procedure(cg_context, std::move(ast));
 	if (module == nullptr)
 	{
-		backend_logger->error("backend procedure error");
+		backend_logger->info("backend procedure detected user error");
 		return 1;
 	}
 

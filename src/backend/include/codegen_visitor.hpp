@@ -13,7 +13,7 @@ public:
 	CodeGenVisitor(std::shared_ptr<CodeGenContext> cg_context);
 	/// @note 只支持从根节点翻译
 	[[nodiscard]]
-	auto visit(BaseAST* ast) -> std::expected<void, std::string> override;
+	auto visit(BaseAST* ast) -> bool override;
 
 private:
 	using SymbolTable = std::unordered_map<std::string_view, llvm::Value*>;
@@ -91,6 +91,7 @@ private:
 					   std::string_view msg);
 
 private:
+	bool m_success;
 };
 
 }	//namespace toycc

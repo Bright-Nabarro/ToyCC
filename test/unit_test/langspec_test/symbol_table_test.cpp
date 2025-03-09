@@ -299,3 +299,16 @@ TEST_F(LocalSymbolTableTest, UpperTableSearch)
     EXPECT_EQ(lv0_alloca_after2->value, allocas.at(1)); // `lv0` 自己的值
 }
 
+TEST_F(LocalSymbolTableTest, AllocaNest)
+{
+	LocalSymbolTable lv0 { func, gtable.get() };
+	auto entry0 = std::make_shared<SymbolEntry>(allocas.at(0) );
+	lv0.insert("x", entry0);
+	LocalSymbolTable lv1 { &lv0 };
+	auto entry1 = std::make_shared<SymbolEntry>(allocas.at(1) );
+	lv1.insert("x", entry1);
+	auto ret = lv1.lookup("x");
+	ASSERT_TRUE(ret);
+	EXPECT_EQ(ret->alloca, allocas.at(1));
+	EXPECT_NE(ret->alloca, allocas.at(0));
+}

@@ -15,7 +15,7 @@ public:
 	~ASTVisitor() = default;
 
 	virtual
-	auto visit(BaseAST*) -> std::expected<void, std::string> = 0;
+	auto visit(BaseAST*) -> bool = 0;
 };
 
 
@@ -63,7 +63,7 @@ public:
 	~BaseAST() = default;
 
 	virtual
-	auto accept(ASTVisitor& visitor) -> std::expected<void, std::string>;
+	auto accept(ASTVisitor& visitor) -> bool;
 
 	[[nodiscard]]
 	auto get_kind() const -> AstKind;

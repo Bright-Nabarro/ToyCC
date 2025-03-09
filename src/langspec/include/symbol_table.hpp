@@ -56,6 +56,9 @@ public:
 	LocalSymbolTable(LocalSymbolTable* upper_table);
 	LocalSymbolTable(llvm::Function* func,
 					 GlobalSymbolTable* global);
+	LocalSymbolTable(LocalSymbolTable& rhs) = delete;
+	auto operator()(LocalSymbolTable& rhs) -> LocalSymbolTable& = delete;
+	
 	~LocalSymbolTable() = default;
 
 	/**

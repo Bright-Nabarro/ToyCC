@@ -17,25 +17,28 @@ namespace toycc
 {
 
 CodeGenVisitor::CodeGenVisitor(std::shared_ptr<CodeGenContext> cg_context):
-	CGContextInterface { cg_context }
+	CGContextInterface { cg_context },
+	m_success { true }
 {}
 
-auto CodeGenVisitor::visit(BaseAST* ast) -> std::expected<void, std::string>
+auto CodeGenVisitor::visit(BaseAST* ast) -> bool
 {
 	if (ast == nullptr)
 	{
-		return std::unexpected {std::format("{}", "visit paramater is null")};
+		get_logger().error(std::format("{}", "visit paramater is null"));
+		abort();
 	}
 
 	auto comp_unit_ptr = llvm::dyn_cast<CompUnit>(ast);
 	if (comp_unit_ptr == nullptr)
 	{
-		return std::unexpected {std::format("{}", "output visitor paramater should be a CompUnit") };
+		get_logger().error(std::format("{}", "output visitor paramater should be a CompUnit"));
+		abort();
 	}
 	
 	handle(*comp_unit_ptr);
 
-	return {};
+	return m_success;
 }
 
 
@@ -195,7 +198,7 @@ auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
 
 void CodeGenVisitor::handle(const Block& node, LocalSymbolTable& upper_table)
 {
-	LocalSymbolTable table { upper_table };
+	LocalSymbolTable table { &upper_table };
 	handle(node.get_block_item_list(), table);
 }
 
@@ -228,6 +231,12 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 	case Stmt::assign:
 	{
 		auto left_entry = handle(node.get_lval(), table);
+		if (!left_entry)
+		{
+			get_logger().info("Error happens in Lval");
+			return;
+		}
+
 		llvm::Value* right_value = handle(node.get_expr(), table);
 
 		if (left_entry->type != SymbolEntry::alloca_value) [[unlikely]]
@@ -620,14 +629,13 @@ auto CodeGenVisitor::handle(const LVal& node, LocalSymbolTable& table)
 auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 	-> llvm::Value*
 {
-	get_logger().debug("UnaryOp[{}] Begin", op.get_type_str());
 	llvm::Value* result = nullptr;
 	llvm::Type* type = operand->getType();
 
 	if (!type->isIntegerTy() && !type->isFloatingPointTy())
 	{
 		get_logger().error("Expected type in UnaryOp");
-		return nullptr;
+		abort();
 	}
 
 	switch (op.get_type())
@@ -663,10 +671,9 @@ auto CodeGenVisitor::unary_operate(const UnaryOp& op, llvm::Value* operand)
 	default:
 		get_logger().error("Unkown operation: {}, category: {}",
 						static_cast<int>(op.get_type()), op.get_type_str());
-		result = nullptr;
+		abort();
 	}
 
-	get_logger().debug("UnaryOp[{}] Begin", op.get_type_str());
 	return result;
 }
 
@@ -731,6 +738,7 @@ auto CodeGenVisitor::report_conversion_result(const ConversionResult& result,
 		report_in_ast(node, Location::dk_warning, result.ec.message());
 		return result.result_type;
 	case ConversionStatus::failure:
+		m_success = false;
 		report_in_ast(node, Location::dk_warning, result.ec.message());
 		return nullptr;
 	default:
@@ -865,14 +873,14 @@ auto CodeGenVisitor::handle(const InitVal& node, LocalSymbolTable& table)
 {
 	
 	auto result = handle(node.get_expr(), table);
-	
-
 	return result;
 }
 
 void CodeGenVisitor::report_in_ast(const BaseAST& node, Location::DiagKind kind,
 								   std::string_view msg)
 {
+	if (kind == Location::DiagKind::dk_error)
+		m_success = false;
 	node.report(kind, msg, &get_src_mgr());
 }
 
