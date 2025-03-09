@@ -11,6 +11,14 @@ namespace toycc
 class Block;
 class Stmt;
 
+class IfNoElse: public BaseAST
+{
+};
+
+class IfWithElse: public BaseAST
+{
+};
+
 class SelectStmt: public BaseAST
 {
 public:

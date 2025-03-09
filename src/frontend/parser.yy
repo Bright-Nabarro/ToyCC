@@ -45,7 +45,8 @@ namespace toycc { class Driver; }
 %token KW_RETURN
 %token KW_SINT KW_UINT KW_VOID 
 %token KW_CONST KW_EVAL
-%token KW_IF KW_ELSE KW_WHILE
+%token KW_WHILE
+%token KW_IF KW_ELSE 
 // 字面量标识分隔符
 %token DELIM_LPAREN		"("
 %token DELIM_RPAREN		")"
@@ -53,6 +54,7 @@ namespace toycc { class Driver; }
 %token DELIM_RBRACE		"}"
 %token DELIM_COMMA 		","
 %token DELIM_SEMICOLON	";"
+
 // 操作符
 %token OP_ADD	"+"
 %token OP_SUB	"-"
@@ -78,7 +80,8 @@ namespace toycc { class Driver; }
 //语句
 %nterm <std::unique_ptr<toycc::Module>>			Module
 %nterm <std::unique_ptr<toycc::Stmt>>			Stmt
-%nterm <std::unique_ptr<toycc::SelectStmt>>		SelectStmt
+%nterm <std::unique_ptr<toycc::IfNoElse>>		IfNoElse
+%nterm <std::unique_ptr<toycc::IfWithElse>>		IfWithElse
 %nterm <std::unique_ptr<toycc::Decl>>			Decl
 %nterm <std::unique_ptr<toycc::Block>>			Block
 %nterm <std::unique_ptr<toycc::BlockItemList>>	BlockItemList
@@ -120,9 +123,6 @@ namespace toycc { class Driver; }
 %nterm <std::unique_ptr<toycc::L7Op>>			L7Op
 %nterm <std::unique_ptr<toycc::LAndOp>>			LAndOp
 %nterm <std::unique_ptr<toycc::LOrOp>>			LOrOp
-
-%precedence PRE_LOWER_THEN_ELSE
-%precedence PRE_ELSE
 
 %%
 
@@ -381,22 +381,24 @@ Stmt
 		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
 			toycc::Stmt::while_stmt, std::move($3), std::move($5));
 	}
-	| SelectStmt {
+	| IfNoElse {
 		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
 			toycc::Stmt::if_stmt, std::move($1));
+	}
+	| IfWithElse {
 	};
 
-
-SelectStmt:
-	 KW_IF "(" Expr ")" Stmt PRE_LOWER_THEN_ELSE {
-		$$ = std::make_unique<toycc::SelectStmt>(CONSTRUCT_LOCATION(@$),
+IfNoElse:
+	 KW_IF "(" Expr ")" Stmt {
+		$$ = std::make_unique<toycc::IfNoElse>(CONSTRUCT_LOCATION(@$),
 			std::move($3), std::move($5));
-	}
-	// 1     2   3    4   5     6      7
-	| KW_IF "(" Expr ")" Stmt KW_ELSE Stmt PRE_ELSE {
-		$$ = std::make_unique<toycc::SelectStmt>(CONSTRUCT_LOCATION(@$),
+	};
+		   // 1     2   3    4   5     6      7
+IfWithElse: KW_IF "(" Expr ")" Stmt KW_ELSE Stmt {
+		$$ = std::make_unique<toycc::IfWithElse>(CONSTRUCT_LOCATION(@$),
 			std::move($3), std::move($5), std::move($7));
-	}
+	};
+
 Expr
 	: LOrExpr {
 		assert_same_ptr(toycc::LOrExpr, $1);
