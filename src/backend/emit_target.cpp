@@ -10,7 +10,7 @@ namespace toycc
 {
 
 EmitTarget::EmitTarget(std::string_view inputfile_name,
-		   llvm::TargetMachine* target_machine, bool emit_llvm,
+		   std::shared_ptr<llvm::TargetMachine> target_machine, bool emit_llvm,
 		   std::string optimization_level,
 		   std::shared_ptr<spdlog::async_logger> logger):
 	m_inputfile_name { inputfile_name }, m_target_name { std::nullopt },
@@ -20,7 +20,7 @@ EmitTarget::EmitTarget(std::string_view inputfile_name,
 }
 
 EmitTarget::EmitTarget(std::string_view inputfile_name, std::string_view target_name,
-		   llvm::TargetMachine* target_machine, bool emit_llvm,
+		   std::shared_ptr<llvm::TargetMachine> target_machine, bool emit_llvm,
 		   std::string optimization_level,
 		   std::shared_ptr<spdlog::async_logger> logger):
 	m_inputfile_name { inputfile_name }, m_target_name { target_name },

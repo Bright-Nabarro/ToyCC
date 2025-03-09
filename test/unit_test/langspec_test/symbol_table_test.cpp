@@ -113,7 +113,7 @@ protected:
 
 TEST_F (LocalSymbolTableTest, Constructor)
 {
-	LocalSymbolTable outter { func, gtable };
+	LocalSymbolTable outter { func, gtable.get() };
 	LocalSymbolTable inner { &outter };
 	ASSERT_EQ(outter.get_func(), func);
 	EXPECT_EQ(inner.get_func(), func);
@@ -131,7 +131,7 @@ TEST_F (LocalSymbolTableTest, Constructor)
 
 TEST_F(LocalSymbolTableTest, ThisScopeRootValue)
 {
-    LocalSymbolTable lv0 { func, gtable };
+    LocalSymbolTable lv0 { func, gtable.get() };
     array<string, 3> names = { "a", "b", "c" };
 
     // 确保初始状态 lookup 失败
@@ -163,7 +163,7 @@ TEST_F(LocalSymbolTableTest, ThisScopeRootValue)
 
 TEST_F(LocalSymbolTableTest, ThisScopeRootAlloca)
 {
-    LocalSymbolTable lv0 { func, gtable };
+    LocalSymbolTable lv0 { func, gtable.get() };
     array<string, 3> names = { "x", "y", "z" };
 
     // 确保初始状态 lookup 失败
@@ -194,7 +194,7 @@ TEST_F(LocalSymbolTableTest, ThisScopeRootAlloca)
 
 TEST_F(LocalSymbolTableTest, ThisScopeMix)
 {
-    LocalSymbolTable lv0 { func, gtable };
+    LocalSymbolTable lv0 { func, gtable.get() };
 
     // 变量名称
     string value_name = "v";
@@ -228,7 +228,7 @@ TEST_F(LocalSymbolTableTest, ThisScopeMix)
 
 TEST_F(LocalSymbolTableTest, UpperTableSearch)
 {
-    LocalSymbolTable lv0 { func, gtable };
+    LocalSymbolTable lv0 { func, gtable.get() };
 
     // 变量名称
     string value_name = "v";
@@ -299,3 +299,16 @@ TEST_F(LocalSymbolTableTest, UpperTableSearch)
     EXPECT_EQ(lv0_alloca_after2->value, allocas.at(1)); // `lv0` 自己的值
 }
 
+TEST_F(LocalSymbolTableTest, AllocaNest)
+{
+	LocalSymbolTable lv0 { func, gtable.get() };
+	auto entry0 = std::make_shared<SymbolEntry>(allocas.at(0) );
+	lv0.insert("x", entry0);
+	LocalSymbolTable lv1 { &lv0 };
+	auto entry1 = std::make_shared<SymbolEntry>(allocas.at(1) );
+	lv1.insert("x", entry1);
+	auto ret = lv1.lookup("x");
+	ASSERT_TRUE(ret);
+	EXPECT_EQ(ret->alloca, allocas.at(1));
+	EXPECT_NE(ret->alloca, allocas.at(0));
+}

@@ -8,7 +8,7 @@ BaseAST::BaseAST(AstKind kind, std::unique_ptr<Location> location)
 	: m_kind{kind}, m_location{std::move(location)}
 {}
 
-auto BaseAST::accept(ASTVisitor& visitor) -> std::expected<void, std::string>
+auto BaseAST::accept(ASTVisitor& visitor) -> bool
 {
 	return visitor.visit(this);
 }

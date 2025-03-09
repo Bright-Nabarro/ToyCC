@@ -22,12 +22,12 @@ public:
 	};
 
 	EmitTarget(std::string_view inputfile_name,
-			   llvm::TargetMachine* target_machine, bool emit_llvm,
+			   std::shared_ptr<llvm::TargetMachine> target_machine, bool emit_llvm,
 			   std::string m_optimization_level,
 			   std::shared_ptr<spdlog::async_logger> logger);
 
 	EmitTarget(std::string_view inputfile_name, std::string_view target_name,
-			   llvm::TargetMachine* target_machine, bool emit_llvm,
+			   std::shared_ptr<llvm::TargetMachine> target_machine, bool emit_llvm,
 			   std::string m_optimization_level,
 			   std::shared_ptr<spdlog::async_logger> logger);
 
@@ -50,7 +50,7 @@ private:
 private:
 	std::string_view m_inputfile_name;
 	std::optional<std::string_view> m_target_name;
-	llvm::TargetMachine* m_target_machine;
+	std::shared_ptr<llvm::TargetMachine> m_target_machine;
 	bool m_emit_llvm;
 	std::string m_optimization_level;
 	std::shared_ptr<spdlog::async_logger> m_logger;

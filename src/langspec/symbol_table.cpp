@@ -20,13 +20,14 @@ auto GlobalSymbolTable::insert(std::string_view name,
 }
 
 LocalSymbolTable::LocalSymbolTable(LocalSymbolTable* upper_table):
-	m_upper { upper_table }, m_func { upper_table->m_func }
+	m_upper { upper_table }, m_func { upper_table->m_func },
+	m_global_table { nullptr }
 {
 	assert(upper_table->m_func != nullptr);
 }
 
 LocalSymbolTable::LocalSymbolTable(llvm::Function* func,
-								   std::shared_ptr<GlobalSymbolTable> global)
+								   GlobalSymbolTable* global)
 	: m_upper{nullptr}, m_func{func}, m_global_table { global }
 {
 }

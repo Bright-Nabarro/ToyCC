@@ -55,7 +55,10 @@ public:
 	 */
 	LocalSymbolTable(LocalSymbolTable* upper_table);
 	LocalSymbolTable(llvm::Function* func,
-					 std::shared_ptr<GlobalSymbolTable> global);
+					 GlobalSymbolTable* global);
+	LocalSymbolTable(LocalSymbolTable& rhs) = delete;
+	auto operator()(LocalSymbolTable& rhs) -> LocalSymbolTable& = delete;
+	
 	~LocalSymbolTable() = default;
 
 	/**
@@ -78,7 +81,7 @@ private:
 	std::unordered_map<std::string_view, std::shared_ptr<SymbolEntry>> m_table;
 	LocalSymbolTable* m_upper;
 	llvm::Function* m_func;
-	std::shared_ptr<GlobalSymbolTable> m_global_table;
+	GlobalSymbolTable* m_global_table;
 };
 
 }	//namespace toycc
