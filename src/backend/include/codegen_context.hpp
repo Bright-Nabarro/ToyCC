@@ -2,6 +2,7 @@
 
 #include "type_mgr.hpp"
 #include "conversion.hpp"
+#include "symbol_table.hpp"
 #include <memory>
 #include <expected>
 #include <llvm/IR/IRBuilder.h>
@@ -60,6 +61,11 @@ public:
 	{
 		return *m_type_mgr;
 	}
+
+	auto get_global_table() -> GlobalSymbolTable*
+	{
+		return m_global_table.get();
+	}
 	
 private:
 	std::unique_ptr<llvm::LLVMContext> m_context;
@@ -71,6 +77,7 @@ private:
 	llvm::SourceMgr& m_src_mgr;
 	std::shared_ptr<llvm::TargetMachine> m_target_machine;
 	std::shared_ptr<spdlog::async_logger> m_logger;
+	std::unique_ptr<GlobalSymbolTable> m_global_table;
 };
 
 
@@ -97,6 +104,8 @@ public:
 	virtual auto get_result() -> std::unique_ptr<llvm::Module>;
 	[[nodiscard]]
 	virtual auto get_type_mgr() -> TypeMgr&;
+	[[nodiscard]]
+	virtual auto get_global_table() -> GlobalSymbolTable*;
 private:
 	std::shared_ptr<CodeGenContext> m_cg_context;
 };

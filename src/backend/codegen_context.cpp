@@ -13,13 +13,14 @@ CodeGenContext::CodeGenContext(
 	m_builder{m_module->getContext()},
 	m_type_mgr{std::make_unique<TypeMgr>(m_module->getContext(), tm.get())},
 	m_cvt_helper { std::make_unique<ConversionHelper>(cvt_config, *m_context) },
-	m_src_mgr{src_mgr}, m_target_machine{tm}, m_logger{logger}
+	m_src_mgr{src_mgr}, m_target_machine{tm}, m_logger{logger},
+	m_global_table { std::make_unique<GlobalSymbolTable>() }
 {}
 
-#define CGI_GETTER(func_name, return_type) \
-	auto CGContextInterface::func_name() -> return_type \
-	{ \
-		return m_cg_context-> func_name(); \
+#define CGI_GETTER(func_name, return_type)                                     \
+	auto CGContextInterface::func_name() -> return_type                        \
+	{                                                                          \
+		return m_cg_context->func_name();                                      \
 	}
 
 CGI_GETTER(get_llvm_context, llvm::LLVMContext&)
@@ -30,5 +31,6 @@ CGI_GETTER(get_src_mgr, llvm::SourceMgr&)
 CGI_GETTER(get_logger, spdlog::async_logger&)
 CGI_GETTER(get_result, std::unique_ptr<llvm::Module>)
 CGI_GETTER(get_type_mgr, TypeMgr&)
+CGI_GETTER(get_global_table, GlobalSymbolTable*)
 
 }	//namespace toycc

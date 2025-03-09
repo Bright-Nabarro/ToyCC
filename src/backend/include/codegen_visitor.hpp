@@ -91,7 +91,6 @@ private:
 					   std::string_view msg);
 
 private:
-	std::shared_ptr<GlobalSymbolTable> m_global_table;
 };
 
 }	//namespace toycc

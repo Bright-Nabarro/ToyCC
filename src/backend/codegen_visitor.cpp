@@ -17,8 +17,7 @@ namespace toycc
 {
 
 CodeGenVisitor::CodeGenVisitor(std::shared_ptr<CodeGenContext> cg_context):
-	CGContextInterface { cg_context },
-	m_global_table { std::make_shared<GlobalSymbolTable>() }
+	CGContextInterface { cg_context }
 {}
 
 auto CodeGenVisitor::visit(BaseAST* ast) -> std::expected<void, std::string>
@@ -178,7 +177,7 @@ auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
 	get_builder().SetInsertPoint(basic_block);
 
 	// 局部符号表
-	LocalSymbolTable table(func, m_global_table);
+	LocalSymbolTable table(func, get_global_table());
 
 	for (std::size_t i = 0; i < param_names.size(); ++i)
 	{
@@ -418,7 +417,7 @@ auto CodeGenVisitor::handle(const UnaryExpr& node, LocalSymbolTable& table)
 	static auto handle_func = [this](const UnaryExpr& node) -> llvm::Function*
 	{
 		auto func_name = handle(node.get_ident());
-		auto entry = m_global_table->find(func_name);
+		auto entry = get_global_table()->find(func_name);
 		if (!entry)
 		{
 			report_in_ast(node, Location::dk_error,
