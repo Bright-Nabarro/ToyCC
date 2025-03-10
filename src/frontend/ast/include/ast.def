@@ -44,7 +44,9 @@ AST_KIND(ast_var_def_list, "Variable Definition List")
 AST_KIND(ast_init_val, "Initialization Value")
 
 AST_KIND(ast_stmt, "Statement")
-AST_KIND(ast_select_stmt, "Selection Statement")
+AST_KIND(ast_simple_stmt, "Simple Statement")
+AST_KIND(ast_closed_stmt, "Closed Statement")
+AST_KIND(ast_open_stmt, "Open Statement")
 
 AST_KIND(ast_block, "Block Statement")
 AST_KIND(ast_block_item_list, "Block Item List")

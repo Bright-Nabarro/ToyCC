@@ -80,8 +80,9 @@ namespace toycc { class Driver; }
 //语句
 %nterm <std::unique_ptr<toycc::Module>>			Module
 %nterm <std::unique_ptr<toycc::Stmt>>			Stmt
-%nterm <std::unique_ptr<toycc::IfNoElse>>		IfNoElse
-%nterm <std::unique_ptr<toycc::IfWithElse>>		IfWithElse
+%nterm <std::unique_ptr<toycc::OpenStmt>>		OpenStmt
+%nterm <std::unique_ptr<toycc::ClosedStmt>>		ClosedStmt
+%nterm <std::unique_ptr<toycc::SimpleStmt>>		SimpleStmt
 %nterm <std::unique_ptr<toycc::Decl>>			Decl
 %nterm <std::unique_ptr<toycc::Block>>			Block
 %nterm <std::unique_ptr<toycc::BlockItemList>>	BlockItemList
@@ -349,54 +350,71 @@ LVal
 		$$ = std::make_unique<toycc::LVal>(CONSTRUCT_LOCATION(@$), std::move($1));
 	};
 
-Stmt
+SimpleStmt
 	: LVal "=" Expr DELIM_SEMICOLON {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::assign, std::move($1), std::move($3));
+		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::assign, std::move($1), std::move($3));
 	}
 	| Expr DELIM_SEMICOLON {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::expression, std::move($1));
+		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::expression, std::move($1));
 	}
 	| DELIM_SEMICOLON {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
 			toycc::Stmt::expression);
 	}
 	| KW_RETURN Expr DELIM_SEMICOLON {
 		assert_same_ptr(toycc::Expr, $2);
-		auto stmt_ptr = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::func_return, std::move($2));
+		auto stmt_ptr = std::make_unique<toycc::SimpleStmt>>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::func_return, std::move($2));
 		$$ = std::move(stmt_ptr);
 	}
 	| KW_RETURN DELIM_SEMICOLON {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::func_return);
+		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::func_return);
 	}
 	| Block {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::block, std::move($1));
-	}
-	// 1 		2	3	 4	 5
-	| KW_WHILE "(" Expr ")" Stmt {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::while_stmt, std::move($3), std::move($5));
-	}
-	| IfNoElse {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::if_stmt, std::move($1));
-	}
-	| IfWithElse {
+		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::block, std::move($1));
 	};
 
-IfNoElse:
-	 KW_IF "(" Expr ")" Stmt {
-		$$ = std::make_unique<toycc::IfNoElse>(CONSTRUCT_LOCATION(@$),
-			std::move($3), std::move($5));
-	};
-		   // 1     2   3    4   5     6      7
-IfWithElse: KW_IF "(" Expr ")" Stmt KW_ELSE Stmt {
-		$$ = std::make_unique<toycc::IfWithElse>(CONSTRUCT_LOCATION(@$),
+OpenStmt:
+	// 1 		2	3	 4	 5
+	KW_WHILE "(" Expr ")" OpenStmt {
+		$$ = std::make_unique<toycc::OpenStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::while_stmt, std::move($3), std::move($5));
+	}
+	| KW_IF "(" Expr ")" Stmt {
+		$$ = std::make_unique<toycc::OpenStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::if_stmt, std::move($3), std::move($5));
+	}
+	 // 1     2   3    4   5     		6      7
+	| KW_IF "(" Expr ")" ClosedStmt KW_ELSE OpenStmt {
+		$$ = std::make_unique<toycc::OpenStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::if_else_stmt,
 			std::move($3), std::move($5), std::move($7));
+	};
+
+ClosedStmt:
+	KW_WHILE "(" Expr ")" ClosedStmt {
+		$$ = std::make_unique<toycc::ClosedStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::while_stmt, std::move($3), std::move($5));
+	}
+	| SimpleStmt {
+		$$ = std::make_unique<toycc::ClosedStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::simple_stmt, std::move($1));
+	}
+		// 1     2   3    4   5     6      7
+	| KW_IF "(" Expr ")" ClosedStmt KW_ELSE ClosedStmt {
+		$$ = std::make_unique<toycc::ClosedStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::if_else_stmt,
+			std::move($3), std::move($5), std::move($7));
+	};
+
+Stmt:
+	OpenStmt {
+	}
+	| ClosedStmt {
 	};
 
 Expr

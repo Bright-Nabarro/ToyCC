@@ -223,7 +223,7 @@ void CodeGenVisitor::handle(const BlockItem& node, LocalSymbolTable& table)
 	
 }
 
-void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
+void CodeGenVisitor::handle(const SimpleStmt& node, LocalSymbolTable& table)
 {
 	
 	switch (node.get_type())

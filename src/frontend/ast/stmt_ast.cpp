@@ -2,141 +2,121 @@
 
 namespace toycc
 {
+/// BranchStmt
 
-SelectStmt::SelectStmt(std::unique_ptr<Location> location,
-			std::unique_ptr<Expr> expr,
-			std::unique_ptr<Stmt> if_stmt):
-	BaseAST { ast_select_stmt, std::move(location) },
-	m_expr { std::move(expr) },
-	m_if_stmt { std::move(if_stmt) },
-	m_else_stmt { nullptr }
-{}
+template<typename OpenOrClosedStmt>
+BranchStmt<OpenOrClosedStmt>::~BranchStmt() {}
 
-SelectStmt::SelectStmt(std::unique_ptr<Location> location,
-			std::unique_ptr<Expr> expr,
-			std::unique_ptr<Stmt> if_stmt,
-			std::unique_ptr<Stmt> else_stmt):
-	BaseAST { ast_select_stmt, std::move(location) },
-	m_expr { std::move(expr) },
-	m_if_stmt { std::move(if_stmt) },
-	m_else_stmt { std::move(else_stmt) }
-{}
-
-SelectStmt::~SelectStmt() {}
-
-auto SelectStmt::get_expr() const -> const Expr&
+template<typename OpenOrClosedStmt>
+auto BranchStmt<OpenOrClosedStmt>::get_type() -> BranchType
 {
+	return m_br_type;
+}
+
+template<typename OpenOrClosedStmt>
+auto BranchStmt<OpenOrClosedStmt>::get_expr() -> const Expr&
+{
+	assert(m_expr);
 	return *m_expr;
 }
 
-auto SelectStmt::get_if_stmt() const -> const Stmt&
+template<typename OpenOrClosedStmt>
+auto BranchStmt<OpenOrClosedStmt>::get_first_stmt() -> const ClosedStmt&
 {
-	assert(m_if_stmt != nullptr);
-	return *m_if_stmt;
+	assert(m_first_stmt);
+	return *m_first_stmt;
 }
 
-auto SelectStmt::get_else_stmt() const -> const Stmt&
+template<typename OpenOrClosedStmt>
+auto BranchStmt<OpenOrClosedStmt>::get_last_stmt() -> const OpenOrClosedStmt&
 {
-	assert(m_else_stmt != nullptr);
-	return *m_else_stmt;
+	assert(m_last_stmt);
+	return *m_last_stmt;
 }
 
-/// Stmt
-Stmt::~Stmt() {}
+template class BranchStmt<OpenStmt>;
+template class BranchStmt<ClosedStmt>;	
 
-Stmt::Stmt(std::unique_ptr<Location> location, StmtType type):
+ClosedStmt::ClosedStmt(std::unique_ptr<Location> location, BranchType br_type,
+					   std::unique_ptr<SimpleStmt> simple_stmt)
+	: BranchStmt<ClosedStmt>{ast_closed_stmt, std::move(location), br_type},
+	  m_simple_stmt{std::move(simple_stmt)}
+{
+}
+
+auto ClosedStmt::get_simple_stmt() -> const SimpleStmt&
+{
+	assert(m_simple_stmt);
+	return *m_simple_stmt;
+}
+
+OpenStmt::OpenStmt(std::unique_ptr<Location> location, BranchType br_type,
+				   std::unique_ptr<Expr> expr,
+				   std::unique_ptr<Stmt> stmt):
+	BranchStmt{ ast_open_stmt, std::move(location), br_type},
+	BranchStmt::m_expr { std::move(expr) }
+{
+}
+
+/// SimpleStmt
+SimpleStmt::~SimpleStmt() {}
+
+SimpleStmt::SimpleStmt(std::unique_ptr<Location> location, SimpleStmtType type):
 	BaseAST { ast_stmt, std::move(location) }, m_type { type },
 		m_lval { nullptr }, m_expr { nullptr },
-		m_block { nullptr }, m_stmt{ nullptr },
-		m_select_stmt { nullptr }
+		m_block { nullptr }
 {
-	assert(type == StmtType::func_return || type == StmtType::expression);
 }
 	
-Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
+SimpleStmt::SimpleStmt(std::unique_ptr<Location> location, SimpleStmtType type,
 	 std::unique_ptr<Expr> expr):
 	BaseAST { ast_stmt, std::move(location) }, m_type { type },
 		m_lval { nullptr }, m_expr { std::move(expr) },
-		m_block { nullptr }, m_stmt { nullptr },
-		m_select_stmt { nullptr }
+		m_block { nullptr }
 {
-	assert(type == StmtType::func_return || type == StmtType::expression);
 }
 
-Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
+SimpleStmt::SimpleStmt(std::unique_ptr<Location> location, SimpleStmtType type,
            std::unique_ptr<LVal> lval, std::unique_ptr<Expr> expr)
     : BaseAST{ast_stmt, std::move(location)}, m_type{type},
       m_lval{std::move(lval)}, m_expr{std::move(expr)},
-      m_block{nullptr}, m_stmt { nullptr },
-	  m_select_stmt { nullptr }
+      m_block{nullptr}
 {
-	assert(type == StmtType::assign);
 }
 
-Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
+SimpleStmt::SimpleStmt(std::unique_ptr<Location> location, SimpleStmtType type,
 		   std::unique_ptr<Block> block)
 	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
-	  m_expr{nullptr}, m_block{std::move(block)}, m_stmt { nullptr },
-	  m_select_stmt { nullptr }
+	  m_expr{nullptr}, m_block{std::move(block)}
 {
-	assert(type == StmtType::block);
 }
 
-Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
-	std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> stmt)
-	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
-	  m_expr{std::move(expr)}, m_block{}, m_stmt { std::move(stmt) },
-	  m_select_stmt { nullptr }
+auto SimpleStmt::has_expr() const -> bool
 {
-	assert(type == StmtType::if_stmt || type == StmtType::while_stmt);
-}
-
-
-Stmt::Stmt(std::unique_ptr<Location> location, StmtType type,
-	std::unique_ptr<SelectStmt> select_stmt)
-	: BaseAST{ast_stmt, std::move(location)}, m_type{type}, m_lval{nullptr},
-	  m_block{}, m_stmt {},
-	  m_select_stmt { std::move(select_stmt) }
-{
-	assert(type == StmtType::if_stmt);
-}
-
-
-auto Stmt::has_expr() const -> bool
-{
-	assert(m_type == Stmt::expression || m_type == Stmt::func_return);
+	assert(m_type == SimpleStmt::expression
+		|| m_type == SimpleStmt::func_return
+		|| m_type == SimpleStmt::assign);
 	return m_expr != nullptr;
 }
 
-auto Stmt::get_lval() const -> const LVal&
+auto SimpleStmt::get_lval() const -> const LVal&
 {
-	assert(m_lval && "Stmt does not contain a LVal");
+	assert(m_lval && "SimpleStmt does not contain a LVal");
 	return *m_lval;
 }
 
-auto Stmt::get_expr() const -> const Expr&
+auto SimpleStmt::get_expr() const -> const Expr&
 {
-	assert(m_expr && "Stmt does not contain an Expr");
+	assert(m_expr && "SimpleStmt does not contain an Expr");
 	return *m_expr;
 }
 
-auto Stmt::get_block() const -> const Block&
+auto SimpleStmt::get_block() const -> const Block&
 {
-	assert(m_block && "Stmt does not contain a Block");
+	assert(m_block && "SimpleStmt does not contain a Block");
 	return *m_block;
 }	
 
-auto Stmt::get_stmt() const -> const Stmt&
-{
-	assert(m_stmt != nullptr);
-	return *m_stmt;
-}
-
-auto Stmt::get_select_stmt() const -> const SelectStmt&
-{
-	assert(m_select_stmt != nullptr);
-	return *m_select_stmt;
-}
 
 /// Param
 Param::Param(std::unique_ptr<Location> location, std::unique_ptr<ScalarType> type,
@@ -204,7 +184,7 @@ auto BlockItem::get_decl() const -> const Decl&
 	return *std::get<DeclPtr>(m_value); // 假设调用时 BlockItem 确定包含 Decl
 }
 
-auto BlockItem::get_stmt() const -> const Stmt&
+auto BlockItem::get_stmt() const -> const SimpleStmt&
 {
 	return *std::get<StmtPtr>(m_value); // 假设调用时 BlockItem 确定包含 Stmt
 }

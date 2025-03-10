@@ -39,18 +39,23 @@ BlockItem		::= Decl | Stmt;
 
 LVal			::= Ident;
 
-# 语句
-Stmt        	::= LVal "=" Expr								# assign
-				| Expr ";" | /*empty*/ ";"						# expression
-				| Block											# block
-				| "return" Expr ";" 							# return
-				| "return" /*empty*/ ";" 						# return
-				| "while" "(" Expr ")" Stmt						# while_stmt
-				| SelectStmt									# if_stmt
-				;
 
-SelectStmt		::= "if" "(" Expr ")" Stmt						# if_stmt
-				|   "if" "(" Expr ")" Stmt "else" Stmt			# if_stmt
+# 语句
+Stmt			::= OpenStmt | ClosedStmt						
+OpenStmt  		::= "if" "(" Expr ")" Stmt							# if
+				|   "if" "(" Expr ")" ClosedStmt "else" OpenStmt	# if_else
+				| 	"while" "(" Expr ")" OpenStmt					# while
+
+ClosedStmt 		::= SimpleStmt
+				|	"if" "(" Expr ")" ClosedStmt "else" ClosedStmt	
+				|	"while" "(" Expr ")" ClosedStmt
+
+
+SimpleStmt    	::= LVal "=" Expr								# assign
+				|	Expr ";" | /*empty*/ ";"					# expression
+				|	Block										# block
+				|	"return" Expr ";" 							# return
+				|	"return" /*empty*/ ";" 						# return
 				;
 
 ConstExpr		::= Expr;

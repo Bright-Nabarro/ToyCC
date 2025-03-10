@@ -18,6 +18,7 @@
 - [ ] (较困难) 拆解, 重构CodeGenVisitor
 - [ ] `ConversionHelper`关于整型无法区分是否有符号
 - [ ] 文件名添加到`CGContext`
+- [ ] `ast`位置移动: Block相关->block.hpp, FuncDef及以后->ast.hpp
 
 # 重构需要注意的问题
 - [x] 在前端和管理工具统一日志输出逻辑，使用外部库spdlog
