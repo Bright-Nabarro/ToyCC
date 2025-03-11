@@ -12,6 +12,7 @@
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/IR/Constant.h>
 
 namespace toycc
 {
@@ -88,8 +89,6 @@ void CodeGenVisitor::handle(const FuncDef& node)
 
 auto CodeGenVisitor::handle(const BuiltinType& node) -> llvm::Type*
 {
-	
-
 	llvm::Type* ret;
 	switch(node.get_type())
 	{
@@ -105,8 +104,6 @@ auto CodeGenVisitor::handle(const BuiltinType& node) -> llvm::Type*
 	default:
 		assert(false &&"toycc::Type to llvm::Type*");
 	}
-
-	
 
 	return ret;
 }
@@ -192,6 +189,25 @@ auto CodeGenVisitor::create_basic_block(const Block& node, llvm::Function* func,
 	}
 
 	handle(node.get_block_item_list(), table);
+	
+	auto* curr_block = get_builder().GetInsertBlock();
+	// 当前基本块无返回指令, 如果直接结束会发生段错误
+	if (!curr_block->getTerminator())
+	{
+		if (func->getReturnType() == get_type_mgr().get_void())
+		{
+			get_builder().CreateRetVoid();
+		}
+		else if (func->getReturnType() == get_type_mgr().get_signed_int())
+		{
+			llvm::Value* default_ret = llvm::Constant::getNullValue(get_type_mgr().get_signed_int());
+			get_builder().CreateRet(default_ret);
+		}
+		else
+		{
+			assert(false && "Unsupport return type");
+		}
+	}
 
 	return basic_block;
 }
@@ -204,31 +220,33 @@ void CodeGenVisitor::handle(const Block& node, LocalSymbolTable& upper_table)
 
 void CodeGenVisitor::handle(const BlockItemList& node, LocalSymbolTable& table)
 {
-	
 	for (const auto& block_item : node)
 	{
 		assert(block_item != nullptr);
 		handle(*block_item, table);
 	}
-	
 }
 
 void CodeGenVisitor::handle(const BlockItem& node, LocalSymbolTable& table)
 {
 	
 	if (node.has_decl())
+	{
 		handle(node.get_decl(), table);
+	}
 	else if (node.has_stmt())
+	{
 		handle(node.get_stmt(), table);
-	
+		
+	}
 }
 
-void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
+void CodeGenVisitor::handle(const SimpleStmt& node, LocalSymbolTable& table)
 {
 	
 	switch (node.get_type())
 	{
-	case Stmt::assign:
+	case SimpleStmt::assign:
 	{
 		auto left_entry = handle(node.get_lval(), table);
 		if (!left_entry)
@@ -261,7 +279,7 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 		
 		break;
 	}
-	case Stmt::expression:
+	case SimpleStmt::expression:
 	{
 		if (!node.has_expr())
 		{
@@ -276,12 +294,12 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 		}
 		break;
 	}
-	case Stmt::block:
+	case SimpleStmt::block:
 	{
 		handle(node.get_block(), table);
 		break;
 	}
-	case Stmt::func_return:
+	case SimpleStmt::func_return:
 	{
 		if (!node.has_expr())
 		{
@@ -297,78 +315,120 @@ void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
 		get_builder().CreateRet(value);
 		break;
 	}
-	case Stmt::if_stmt:
-	{
-		handle(node.get_select_stmt(), table);
-		break;
-	}
-	case Stmt::while_stmt:
-	{
-		llvm::BasicBlock* cond = llvm::BasicBlock::Create(
-			get_module()->getContext(), "", table.get_func());
-		llvm::BasicBlock* body = llvm::BasicBlock::Create(
-			get_module()->getContext(), "", table.get_func());
-		llvm::BasicBlock* end = llvm::BasicBlock::Create(
-			get_module()->getContext(), "", table.get_func());
-
-		get_builder().CreateBr(cond);
-		// 条件判断 begin
-		get_builder().SetInsertPoint(cond);
-		auto value = handle(node.get_expr(), table);
-		get_builder().CreateCondBr(value, body, end);
-		// 条件判断 end
-		// 循环体
-		get_builder().SetInsertPoint(body);
-		handle(node.get_stmt(), table);
-		get_builder().CreateBr(cond);
-		// 循环体 end
-		get_builder().SetInsertPoint(end);
-		break;
-	}
 	default:
 		get_logger().error("Unkown StmtType");
 		std::abort();
 	}
-	
-	
 }
 
-void CodeGenVisitor::handle(const SelectStmt& node, LocalSymbolTable& table)
+template <typename OpenOrClosedStmt>
+auto CodeGenVisitor::handle_branch_stmt(
+	const BranchStmt<OpenOrClosedStmt>& node, LocalSymbolTable& table) -> llvm::BasicBlock*
 {
-	
-	llvm::BasicBlock* if_then = llvm::BasicBlock::Create(
-		get_module()->getContext(), "", table.get_func());
-	llvm::BasicBlock* if_end = llvm::BasicBlock::Create(
-		get_module()->getContext(), "", table.get_func());
-
-	auto cmp = handle(node.get_expr(), table);
-	if (!get_cvt_helper().convert_to_bool(cmp->getType()))
+	auto create_br_to_next = [this](llvm::BasicBlock* next) {
+		auto* curr_block = get_builder().GetInsertBlock();
+		if (!curr_block->getTerminator())
+		{
+			get_builder().CreateBr(next);
+		}
+	};
+	switch(node.get_type())
 	{
-		report_in_ast(node, Location::DiagKind::dk_error, "Cannot convert to bool");
-		
-		return;
-	}
+	case BranchType::if_stmt: 
+		assert(node.get_kind() == BaseAST::ast_open_stmt);
+	case BranchType::if_else_stmt:  {
+		llvm::BasicBlock* if_then = llvm::BasicBlock::Create(
+			get_module()->getContext(), "if_then", table.get_func());
+		llvm::BasicBlock* if_end = llvm::BasicBlock::Create(
+			get_module()->getContext(), "if_end", table.get_func());
 
-	if (!node.has_else_stmt())
-	{
-		get_builder().CreateCondBr(cmp, if_then, if_end);
-		get_builder().SetInsertPoint(if_then);
-		handle(node.get_if_stmt(), table);
-		get_builder().CreateBr(if_end);
+		llvm::Value* cmp = handle(node.get_expr(), table);
+		// 检测变量类型是否能够转换为bool
+		if (!get_cvt_helper().convert_to_bool(cmp->getType()))
+		{
+			report_in_ast(node, Location::DiagKind::dk_error, "Cannot convert to bool");
+			return nullptr;
+		}
+		if (node.get_type() == BranchType::if_stmt)
+		{
+			get_builder().CreateCondBr(cmp, if_then, if_end);
+			get_builder().SetInsertPoint(if_then);
+				auto* open_stmt = llvm::cast<OpenStmt>(&node);
+			static_assert(std::is_same_v<decltype(open_stmt), const OpenStmt*>);
+			handle(open_stmt->get_stmt(), table);
+
+			if (!get_builder().GetInsertBlock()->getTerminator())
+				get_builder().CreateBr(if_end);
+		}
+		else
+		{
+			llvm::BasicBlock* if_else = llvm::BasicBlock::Create(
+				get_module()->getContext(), "else", table.get_func());
+			get_builder().CreateCondBr(cmp, if_then, if_else);
+			get_builder().SetInsertPoint(if_then);
+			handle_branch_stmt(node.get_first_stmt(), table);
+			if (!get_builder().GetInsertBlock()->getTerminator())
+				get_builder().CreateBr(if_end);
+			get_builder().SetInsertPoint(if_else);
+			handle_branch_stmt(node.get_last_stmt(), table);
+
+			if (!get_builder().GetInsertBlock()->getTerminator())
+				get_builder().CreateBr(if_end);
+		}
+			get_builder().SetInsertPoint(if_end);
+			return if_end;
+									}
+	case BranchType::while_stmt:
+									{
+		llvm::BasicBlock* cond = llvm::BasicBlock::Create(
+			get_module()->getContext(), "while_cond", table.get_func());
+		llvm::BasicBlock* body = llvm::BasicBlock::Create(
+			get_module()->getContext(), "while_body", table.get_func());
+		llvm::BasicBlock* end = llvm::BasicBlock::Create(
+			get_module()->getContext(), "while_end", table.get_func());
+
+		get_builder().CreateBr(cond);
+		// 条件判断 begin
+		get_builder().SetInsertPoint(cond);
+		llvm::Value* value = handle(node.get_expr(), table);
+		get_builder().CreateCondBr(value, body, end);
+		// 条件判断 end
+		// 循环体
+		get_builder().SetInsertPoint(body);
+		handle_branch_stmt(node.get_last_stmt(), table);
+		get_builder().CreateBr(cond);
+		// 循环体 end
+		get_builder().SetInsertPoint(end);
+		break;
+									}
+	case BranchType::simple_stmt:
+									{
+		assert(node.get_kind() == BaseAST::ast_closed_stmt);
+		auto* close_stmt = llvm::cast<ClosedStmt>(&node);
+		handle(close_stmt->get_simple_stmt(), table);
+		break;
+									}
+	default:
+		get_logger().error("Unkown BranchType");
+		abort();
 	}
+	return nullptr;
+}
+
+//template void
+//CodeGenVisitor::handle_branch_stmt<ClosedStmt>(const BranchStmt<ClosedStmt>&,
+//											   LocalSymbolTable&);
+//template void
+//CodeGenVisitor::handle_branch_stmt<OpenStmt>(const BranchStmt<OpenStmt>&,
+//											   LocalSymbolTable&);
+
+
+void CodeGenVisitor::handle(const Stmt& node, LocalSymbolTable& table)
+{
+	if (node.has_open_stmt())
+		handle_branch_stmt(node.get_open_stmt(), table);
 	else
-	{
-		llvm::BasicBlock* if_else = llvm::BasicBlock::Create(
-			get_module()->getContext(), "", table.get_func());
-		get_builder().CreateCondBr(cmp, if_then, if_else);
-		get_builder().SetInsertPoint(if_then);
-		handle(node.get_if_stmt(), table);
-		get_builder().SetInsertPoint(if_else);
-		handle(node.get_else_stmt(), table);
-		get_builder().CreateBr(if_end);
-	}
-
-	
+		handle_branch_stmt(node.get_closed_stmt(), table);
 }
 
 auto CodeGenVisitor::handle(const Expr& node, LocalSymbolTable& table)
@@ -859,13 +919,11 @@ void CodeGenVisitor::handle(const VarDef& node, llvm::Type* type,
 void CodeGenVisitor::handle(const VarDefList& node, llvm::Type* type,
 							LocalSymbolTable& table)
 {
-	
 	for (const auto& ptr : node)
 	{
 		handle(*ptr, type, table);
 	}
 
-	
 }
 
 auto CodeGenVisitor::handle(const InitVal& node, LocalSymbolTable& table)

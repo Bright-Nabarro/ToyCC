@@ -45,7 +45,8 @@ namespace toycc { class Driver; }
 %token KW_RETURN
 %token KW_SINT KW_UINT KW_VOID 
 %token KW_CONST KW_EVAL
-%token KW_IF KW_ELSE KW_WHILE
+%token KW_WHILE
+%token KW_IF KW_ELSE 
 // 字面量标识分隔符
 %token DELIM_LPAREN		"("
 %token DELIM_RPAREN		")"
@@ -53,6 +54,7 @@ namespace toycc { class Driver; }
 %token DELIM_RBRACE		"}"
 %token DELIM_COMMA 		","
 %token DELIM_SEMICOLON	";"
+
 // 操作符
 %token OP_ADD	"+"
 %token OP_SUB	"-"
@@ -78,7 +80,9 @@ namespace toycc { class Driver; }
 //语句
 %nterm <std::unique_ptr<toycc::Module>>			Module
 %nterm <std::unique_ptr<toycc::Stmt>>			Stmt
-%nterm <std::unique_ptr<toycc::SelectStmt>>		SelectStmt
+%nterm <std::unique_ptr<toycc::OpenStmt>>		OpenStmt
+%nterm <std::unique_ptr<toycc::ClosedStmt>>		ClosedStmt
+%nterm <std::unique_ptr<toycc::SimpleStmt>>		SimpleStmt
 %nterm <std::unique_ptr<toycc::Decl>>			Decl
 %nterm <std::unique_ptr<toycc::Block>>			Block
 %nterm <std::unique_ptr<toycc::BlockItemList>>	BlockItemList
@@ -120,9 +124,6 @@ namespace toycc { class Driver; }
 %nterm <std::unique_ptr<toycc::L7Op>>			L7Op
 %nterm <std::unique_ptr<toycc::LAndOp>>			LAndOp
 %nterm <std::unique_ptr<toycc::LOrOp>>			LOrOp
-
-%precedence PRE_LOWER_THEN_ELSE
-%precedence PRE_ELSE
 
 %%
 
@@ -349,54 +350,77 @@ LVal
 		$$ = std::make_unique<toycc::LVal>(CONSTRUCT_LOCATION(@$), std::move($1));
 	};
 
-Stmt
+SimpleStmt
 	: LVal "=" Expr DELIM_SEMICOLON {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::assign, std::move($1), std::move($3));
+		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::assign, std::move($1), std::move($3));
 	}
 	| Expr DELIM_SEMICOLON {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::expression, std::move($1));
+		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::expression, std::move($1));
 	}
 	| DELIM_SEMICOLON {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::expression);
+		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::expression);
 	}
 	| KW_RETURN Expr DELIM_SEMICOLON {
 		assert_same_ptr(toycc::Expr, $2);
-		auto stmt_ptr = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::func_return, std::move($2));
+		auto stmt_ptr = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::func_return, std::move($2));
 		$$ = std::move(stmt_ptr);
 	}
 	| KW_RETURN DELIM_SEMICOLON {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::func_return);
+		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::func_return);
 	}
 	| Block {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::block, std::move($1));
-	}
-	// 1 		2	3	 4	 5
-	| KW_WHILE "(" Expr ")" Stmt {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::while_stmt, std::move($3), std::move($5));
-	}
-	| SelectStmt {
-		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::if_stmt, std::move($1));
+		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::SimpleStmt::block, std::move($1));
 	};
 
-
-SelectStmt:
-	 KW_IF "(" Expr ")" Stmt PRE_LOWER_THEN_ELSE {
-		$$ = std::make_unique<toycc::SelectStmt>(CONSTRUCT_LOCATION(@$),
-			std::move($3), std::move($5));
+OpenStmt:
+	// 1 		2	3	 4	 5
+	KW_WHILE "(" Expr ")" OpenStmt {
+		$$ = std::make_unique<toycc::OpenStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::while_stmt, std::move($3), std::move($5));
 	}
-	// 1     2   3    4   5     6      7
-	| KW_IF "(" Expr ")" Stmt KW_ELSE Stmt PRE_ELSE {
-		$$ = std::make_unique<toycc::SelectStmt>(CONSTRUCT_LOCATION(@$),
+	| KW_IF "(" Expr ")" Stmt {
+		$$ = std::make_unique<toycc::OpenStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::if_stmt, std::move($3), std::move($5));
+	}
+	 // 1     2   3    4   5     		6      7
+	| KW_IF "(" Expr ")" ClosedStmt KW_ELSE OpenStmt {
+		$$ = std::make_unique<toycc::OpenStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::if_else_stmt,
 			std::move($3), std::move($5), std::move($7));
+	};
+
+ClosedStmt:
+	KW_WHILE "(" Expr ")" ClosedStmt {
+		$$ = std::make_unique<toycc::ClosedStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::while_stmt, std::move($3), std::move($5));
 	}
+	| SimpleStmt {
+		$$ = std::make_unique<toycc::ClosedStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::simple_stmt, std::move($1));
+	}
+		// 1     2   3    4   5     6      7
+	| KW_IF "(" Expr ")" ClosedStmt KW_ELSE ClosedStmt {
+		$$ = std::make_unique<toycc::ClosedStmt>(CONSTRUCT_LOCATION(@$),
+			toycc::BranchType::if_else_stmt,
+			std::move($3), std::move($5), std::move($7));
+	};
+
+Stmt:
+	OpenStmt {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			std::move($1));
+	}
+	| ClosedStmt {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			std::move($1));
+	};
+
 Expr
 	: LOrExpr {
 		assert_same_ptr(toycc::LOrExpr, $1);

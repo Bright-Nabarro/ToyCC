@@ -9,72 +9,146 @@ namespace toycc
 {
 
 class Block;
+class SimpleStmt;
 class Stmt;
+class ClosedStmt;
 
-class SelectStmt: public BaseAST
+enum class BranchType
+{
+	if_stmt,
+	if_else_stmt,
+	while_stmt,
+	simple_stmt,
+};
+
+template<typename OpenOrClosedStmt>
+class BranchStmt: public BaseAST
 {
 public:
-	TOYCC_AST_FILL_CLASSOF(ast_select_stmt);
-	SelectStmt(std::unique_ptr<Location> location,
-			std::unique_ptr<Expr> expr,
-			std::unique_ptr<Stmt> if_stmt);
-	SelectStmt(std::unique_ptr<Location> location,
-			std::unique_ptr<Expr> expr,
-			std::unique_ptr<Stmt> if_stmt,
-			std::unique_ptr<Stmt> else_stmt);
-	~SelectStmt();
+	
+	virtual ~BranchStmt();
+
+	BranchStmt(AstKind kind, std::unique_ptr<Location> location,
+			   BranchType brtype)
+		: BaseAST { kind, std::move(location)}, m_br_type { brtype }
+	{}
+
+	BranchStmt(AstKind kind, std::unique_ptr<Location> location,
+			   BranchType brtype, std::unique_ptr<Expr> expr,
+			   std::unique_ptr<OpenOrClosedStmt> last_stmt)
+		: BaseAST{kind, std::move(location)}, m_br_type{brtype},
+		  m_expr{std::move(expr)}, m_last_stmt{std::move(last_stmt)}
+	{
+		assert(brtype == BranchType::while_stmt);
+	}
+
+	BranchStmt(AstKind kind, std::unique_ptr<Location> location,
+			   BranchType brtype, std::unique_ptr<Expr> expr,
+			   std::unique_ptr<ClosedStmt> first_stmt,
+			   std::unique_ptr<OpenOrClosedStmt> last_stmt):
+		BaseAST { kind, std::move(location) },
+		m_br_type { brtype }, m_expr { std::move(expr) },
+		m_first_stmt { std::move(first_stmt) },
+		m_last_stmt { std::move(last_stmt) }
+	{
+		assert(brtype == BranchType::if_else_stmt);
+	}
 
 	[[nodiscard]]
-	auto has_else_stmt() const -> bool
-	{ return m_else_stmt != nullptr; }
-
+	auto get_type() const -> BranchType;
 	[[nodiscard]]
 	auto get_expr() const -> const Expr&;
 	[[nodiscard]]
-	auto get_if_stmt() const -> const Stmt&;
+	auto get_first_stmt() const -> const ClosedStmt&;
 	[[nodiscard]]
-	auto get_else_stmt() const -> const Stmt&;
+	auto get_last_stmt() const -> const OpenOrClosedStmt&;
 
-private:
+protected:
+	BranchType m_br_type;
 	std::unique_ptr<Expr> m_expr;
-	std::unique_ptr<Stmt> m_if_stmt;
-	std::unique_ptr<Stmt> m_else_stmt;
+	std::unique_ptr<ClosedStmt> m_first_stmt;
+	std::unique_ptr<OpenOrClosedStmt> m_last_stmt;
 };
 
-class Stmt: public BaseAST
+
+class ClosedStmt: public BranchStmt<ClosedStmt>
+{
+public:
+	TOYCC_AST_FILL_CLASSOF(ast_closed_stmt);
+	ClosedStmt(std::unique_ptr<Location> location, BranchType br_type,
+			   std::unique_ptr<SimpleStmt> simple_stmt);			
+	ClosedStmt(std::unique_ptr<Location> location,
+			BranchType br_type,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<ClosedStmt> last_stmt);
+
+	ClosedStmt(std::unique_ptr<Location> location,
+			BranchType br_type,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<ClosedStmt> first_stmt,
+			std::unique_ptr<ClosedStmt> last_stmt);
+
+	[[nodiscard]]
+	auto get_simple_stmt() const -> const SimpleStmt&;
+private:
+	std::unique_ptr<SimpleStmt> m_simple_stmt;
+};
+
+
+class OpenStmt: public BranchStmt<OpenStmt>
+{
+public:
+	TOYCC_AST_FILL_CLASSOF(ast_open_stmt);
+	OpenStmt(std::unique_ptr<Location> location,
+			BranchType br_type,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<Stmt> stmt);
+
+	OpenStmt(std::unique_ptr<Location> location,
+			BranchType br_type,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<OpenStmt> open_stmt);
+
+	OpenStmt(std::unique_ptr<Location> location,
+			BranchType br_type,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<ClosedStmt> closed_stmt,
+			std::unique_ptr<OpenStmt> open_stmt);
+
+
+	[[nodiscard]]
+	auto get_stmt() const -> const Stmt&;
+
+private:
+	std::unique_ptr<Stmt> m_stmt;
+};
+
+class SimpleStmt: public BaseAST
 {
 public:
 	TOYCC_AST_FILL_CLASSOF(ast_stmt);
-	enum StmtType
+	enum SimpleStmtType
 	{
 		assign,
 		expression,
 		block,
 		func_return,
-		if_stmt,
-		while_stmt,
 	};
-	Stmt(std::unique_ptr<Location> location, StmtType type);
+	SimpleStmt(std::unique_ptr<Location> location, SimpleStmtType type);
 
-	Stmt(std::unique_ptr<Location> location, StmtType type,
+	SimpleStmt(std::unique_ptr<Location> location, SimpleStmtType type,
 		 std::unique_ptr<Expr> expr);
 
-	Stmt(std::unique_ptr<Location> location, StmtType type,
+	SimpleStmt(std::unique_ptr<Location> location, SimpleStmtType type,
 		 std::unique_ptr<LVal> lval, std::unique_ptr<Expr> expr);
 
-	Stmt(std::unique_ptr<Location> location, StmtType type,
+	SimpleStmt(std::unique_ptr<Location> location, SimpleStmtType type,
 		std::unique_ptr<Block> block);
 
-	Stmt(std::unique_ptr<Location> location, StmtType type,
-		std::unique_ptr<Expr> expr, std::unique_ptr<Stmt> stmt);
-
-	Stmt(std::unique_ptr<Location> location, StmtType type,
-		 std::unique_ptr<SelectStmt> select_stmt);
-
-	~Stmt();
+	~SimpleStmt();
 
 	[[nodiscard]]
-	auto get_type() const -> StmtType
+	auto get_type() const -> SimpleStmtType
 	{ return m_type; }
 
 	[[nodiscard]]
@@ -89,18 +163,30 @@ public:
 	[[nodiscard]]
 	auto get_block() const -> const Block&;
 
-	[[nodiscard]]
-	auto get_stmt() const -> const Stmt&;
-
-	[[nodiscard]]
-	auto get_select_stmt() const -> const SelectStmt&;
 private:
-	StmtType m_type;
+	SimpleStmtType m_type;
 	std::unique_ptr<LVal> m_lval;
 	std::unique_ptr<Expr> m_expr;
 	std::unique_ptr<Block> m_block;
-	std::unique_ptr<Stmt> m_stmt;
-	std::unique_ptr<SelectStmt> m_select_stmt;
+};
+
+
+class Stmt: public BaseAST
+{
+public:
+	TOYCC_AST_FILL_CLASSOF(ast_stmt);
+	Stmt(std::unique_ptr<Location> location, 
+		 std::unique_ptr<OpenStmt> open_stmt);
+
+	Stmt(std::unique_ptr<Location> location, 
+		 std::unique_ptr<ClosedStmt> closed_stmt);
+
+	auto has_open_stmt() const -> bool;
+	auto get_open_stmt() const -> const OpenStmt&;
+	auto get_closed_stmt() const -> const ClosedStmt&;
+private:
+	std::unique_ptr<OpenStmt> m_open_stmt;
+	std::unique_ptr<ClosedStmt> m_closed_stmt;
 };
 
 

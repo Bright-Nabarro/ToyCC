@@ -2,6 +2,7 @@ set(test_dirs
 	"return"
 	"arithmetic"
 	"block"
+	"if_else"
 )
 
 GetExePathName(exe_path)

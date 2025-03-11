@@ -4,6 +4,8 @@
 - [ ] `ConversionHelper`添加`config`的配置功能
 - [ ] 动态变量检测未初始化功能(需要修改`SymbolTable`)
 - [ ] 完整运算符
+- [ ] `block`, `br`, `value` 等等添加描述性名称
+- [ ] (较困难) 某个代码路径如果没有返回值会警告 (需要记录块的结束类型`br`或者`ret`)
 
 # 目前待改正问题
 - [x] 语义分析(生成代码阶段)报错没有关联到源代码位置，需要在语法树中添加位置的记录信息
@@ -18,6 +20,7 @@
 - [ ] (较困难) 拆解, 重构CodeGenVisitor
 - [ ] `ConversionHelper`关于整型无法区分是否有符号
 - [ ] 文件名添加到`CGContext`
+- [ ] `ast`位置移动: Block相关->block.hpp, FuncDef及以后->ast.hpp
 
 # 重构需要注意的问题
 - [x] 在前端和管理工具统一日志输出逻辑，使用外部库spdlog
