@@ -361,11 +361,11 @@ SimpleStmt
 	}
 	| DELIM_SEMICOLON {
 		$$ = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
-			toycc::Stmt::expression);
+			toycc::SimpleStmt::expression);
 	}
 	| KW_RETURN Expr DELIM_SEMICOLON {
 		assert_same_ptr(toycc::Expr, $2);
-		auto stmt_ptr = std::make_unique<toycc::SimpleStmt>>(CONSTRUCT_LOCATION(@$),
+		auto stmt_ptr = std::make_unique<toycc::SimpleStmt>(CONSTRUCT_LOCATION(@$),
 			toycc::SimpleStmt::func_return, std::move($2));
 		$$ = std::move(stmt_ptr);
 	}
@@ -413,8 +413,12 @@ ClosedStmt:
 
 Stmt:
 	OpenStmt {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			std::move($1));
 	}
 	| ClosedStmt {
+		$$ = std::make_unique<toycc::Stmt>(CONSTRUCT_LOCATION(@$),
+			std::move($1));
 	};
 
 Expr

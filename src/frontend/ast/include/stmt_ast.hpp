@@ -55,13 +55,13 @@ public:
 	}
 
 	[[nodiscard]]
-	auto get_type() -> BranchType;
+	auto get_type() const -> BranchType;
 	[[nodiscard]]
-	auto get_expr() -> const Expr&;
+	auto get_expr() const -> const Expr&;
 	[[nodiscard]]
-	auto get_first_stmt() -> const ClosedStmt&;
+	auto get_first_stmt() const -> const ClosedStmt&;
 	[[nodiscard]]
-	auto get_last_stmt() -> const OpenOrClosedStmt&;
+	auto get_last_stmt() const -> const OpenOrClosedStmt&;
 
 protected:
 	BranchType m_br_type;
@@ -77,9 +77,19 @@ public:
 	TOYCC_AST_FILL_CLASSOF(ast_closed_stmt);
 	ClosedStmt(std::unique_ptr<Location> location, BranchType br_type,
 			   std::unique_ptr<SimpleStmt> simple_stmt);			
+	ClosedStmt(std::unique_ptr<Location> location,
+			BranchType br_type,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<ClosedStmt> last_stmt);
+
+	ClosedStmt(std::unique_ptr<Location> location,
+			BranchType br_type,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<ClosedStmt> first_stmt,
+			std::unique_ptr<ClosedStmt> last_stmt);
 
 	[[nodiscard]]
-	auto get_simple_stmt() -> const SimpleStmt&;
+	auto get_simple_stmt() const -> const SimpleStmt&;
 private:
 	std::unique_ptr<SimpleStmt> m_simple_stmt;
 };
@@ -94,8 +104,20 @@ public:
 			std::unique_ptr<Expr> expr,
 			std::unique_ptr<Stmt> stmt);
 
+	OpenStmt(std::unique_ptr<Location> location,
+			BranchType br_type,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<OpenStmt> open_stmt);
+
+	OpenStmt(std::unique_ptr<Location> location,
+			BranchType br_type,
+			std::unique_ptr<Expr> expr,
+			std::unique_ptr<ClosedStmt> closed_stmt,
+			std::unique_ptr<OpenStmt> open_stmt);
+
+
 	[[nodiscard]]
-	auto get_stmt() -> const Stmt&;
+	auto get_stmt() const -> const Stmt&;
 
 private:
 	std::unique_ptr<Stmt> m_stmt;
@@ -153,6 +175,15 @@ class Stmt: public BaseAST
 {
 public:
 	TOYCC_AST_FILL_CLASSOF(ast_stmt);
+	Stmt(std::unique_ptr<Location> location, 
+		 std::unique_ptr<OpenStmt> open_stmt);
+
+	Stmt(std::unique_ptr<Location> location, 
+		 std::unique_ptr<ClosedStmt> closed_stmt);
+
+	auto has_open_stmt() const -> bool;
+	auto get_open_stmt() const -> const OpenStmt&;
+	auto get_closed_stmt() const -> const ClosedStmt&;
 private:
 	std::unique_ptr<OpenStmt> m_open_stmt;
 	std::unique_ptr<ClosedStmt> m_closed_stmt;
@@ -211,7 +242,7 @@ class BlockItem: public BaseAST
 {
 public:
 	using DeclPtr = std::unique_ptr<Decl>;
-	using StmtPtr = std::unique_ptr<SimpleStmt>;
+	using StmtPtr = std::unique_ptr<Stmt>;
 	using Variant = std::variant<DeclPtr, StmtPtr>;
 
 	TOYCC_AST_FILL_CLASSOF(ast_block_item);
@@ -227,7 +258,7 @@ public:
 	[[nodiscard]]
 	auto get_decl() const -> const Decl&;
 	[[nodiscard]]
-	auto get_stmt() const -> const SimpleStmt&;
+	auto get_stmt() const -> const Stmt&;
 
 private:
 	Variant m_value;

@@ -75,11 +75,11 @@ int gcc_test_modify_var(int x)
 	int y = 10;
 	if (x > 0)
 	{
-		y += 5;
+		y = y + 5;
 	}
 	else
 	{
-		y -= 5;
+		y = y - 5;
 	}
 	return y;
 }

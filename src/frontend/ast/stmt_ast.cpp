@@ -8,27 +8,27 @@ template<typename OpenOrClosedStmt>
 BranchStmt<OpenOrClosedStmt>::~BranchStmt() {}
 
 template<typename OpenOrClosedStmt>
-auto BranchStmt<OpenOrClosedStmt>::get_type() -> BranchType
+auto BranchStmt<OpenOrClosedStmt>::get_type() const -> BranchType
 {
 	return m_br_type;
 }
 
 template<typename OpenOrClosedStmt>
-auto BranchStmt<OpenOrClosedStmt>::get_expr() -> const Expr&
+auto BranchStmt<OpenOrClosedStmt>::get_expr() const -> const Expr&
 {
 	assert(m_expr);
 	return *m_expr;
 }
 
 template<typename OpenOrClosedStmt>
-auto BranchStmt<OpenOrClosedStmt>::get_first_stmt() -> const ClosedStmt&
+auto BranchStmt<OpenOrClosedStmt>::get_first_stmt() const -> const ClosedStmt&
 {
 	assert(m_first_stmt);
 	return *m_first_stmt;
 }
 
 template<typename OpenOrClosedStmt>
-auto BranchStmt<OpenOrClosedStmt>::get_last_stmt() -> const OpenOrClosedStmt&
+auto BranchStmt<OpenOrClosedStmt>::get_last_stmt() const -> const OpenOrClosedStmt&
 {
 	assert(m_last_stmt);
 	return *m_last_stmt;
@@ -44,7 +44,24 @@ ClosedStmt::ClosedStmt(std::unique_ptr<Location> location, BranchType br_type,
 {
 }
 
-auto ClosedStmt::get_simple_stmt() -> const SimpleStmt&
+ClosedStmt::ClosedStmt(std::unique_ptr<Location> location, BranchType br_type,
+					   std::unique_ptr<Expr> expr,
+					   std::unique_ptr<ClosedStmt> open_stmt)
+	: BranchStmt{ast_closed_stmt, std::move(location), br_type, std::move(expr),
+				 std::move(open_stmt)}
+{
+}
+
+ClosedStmt::ClosedStmt(std::unique_ptr<Location> location, BranchType br_type,
+					   std::unique_ptr<Expr> expr,
+					   std::unique_ptr<ClosedStmt> closed_stmt,
+					   std::unique_ptr<ClosedStmt> open_stmt)
+	: BranchStmt{ast_closed_stmt, std::move(location),	  br_type,
+				 std::move(expr), std::move(closed_stmt), std::move(open_stmt)}
+{
+}
+
+auto ClosedStmt::get_simple_stmt() const -> const SimpleStmt&
 {
 	assert(m_simple_stmt);
 	return *m_simple_stmt;
@@ -54,8 +71,32 @@ OpenStmt::OpenStmt(std::unique_ptr<Location> location, BranchType br_type,
 				   std::unique_ptr<Expr> expr,
 				   std::unique_ptr<Stmt> stmt):
 	BranchStmt{ ast_open_stmt, std::move(location), br_type},
-	BranchStmt::m_expr { std::move(expr) }
+	m_stmt { std::move(stmt) }
 {
+	m_expr = std::move(expr);
+}
+
+OpenStmt::OpenStmt(std::unique_ptr<Location> location, BranchType br_type,
+				   std::unique_ptr<Expr> expr,
+				   std::unique_ptr<OpenStmt> open_stmt)
+	: BranchStmt{ast_open_stmt, std::move(location), br_type, std::move(expr),
+				 std::move(open_stmt)}
+{
+}
+
+OpenStmt::OpenStmt(std::unique_ptr<Location> location, BranchType br_type,
+				   std::unique_ptr<Expr> expr,
+				   std::unique_ptr<ClosedStmt> closed_stmt,
+				   std::unique_ptr<OpenStmt> open_stmt)
+	: BranchStmt{ast_open_stmt,	  std::move(location),	  br_type,
+				 std::move(expr), std::move(closed_stmt), std::move(open_stmt)}
+{
+}
+
+auto OpenStmt::get_stmt() const -> const Stmt&
+{
+	assert(m_stmt);
+	return *m_stmt;
 }
 
 /// SimpleStmt
@@ -116,6 +157,34 @@ auto SimpleStmt::get_block() const -> const Block&
 	assert(m_block && "SimpleStmt does not contain a Block");
 	return *m_block;
 }	
+
+Stmt::Stmt(std::unique_ptr<Location> location, 
+	 std::unique_ptr<OpenStmt> open_stmt):
+	BaseAST { ast_stmt, std::move(location) },
+	m_open_stmt { std::move(open_stmt) }
+{}
+
+Stmt::Stmt(std::unique_ptr<Location> location, 
+	 std::unique_ptr<ClosedStmt> closed_stmt):
+	BaseAST { ast_stmt, std::move(location) },
+	m_closed_stmt { std::move(closed_stmt) }
+{}
+
+
+auto Stmt::has_open_stmt() const -> bool
+{
+	return m_open_stmt != nullptr;
+}
+
+auto Stmt::get_open_stmt() const -> const OpenStmt&
+{
+	return *m_open_stmt;
+}
+
+auto Stmt::get_closed_stmt() const -> const ClosedStmt&
+{
+	return *m_closed_stmt;
+}
 
 
 /// Param
@@ -181,12 +250,16 @@ auto BlockItem::has_stmt() const -> bool
 
 auto BlockItem::get_decl() const -> const Decl&
 {
-	return *std::get<DeclPtr>(m_value); // 假设调用时 BlockItem 确定包含 Decl
+	auto& ret = std::get<DeclPtr>(m_value); 
+	assert(ret);
+	return *ret;
 }
 
-auto BlockItem::get_stmt() const -> const SimpleStmt&
+auto BlockItem::get_stmt() const -> const Stmt&
 {
-	return *std::get<StmtPtr>(m_value); // 假设调用时 BlockItem 确定包含 Stmt
+	auto& ret = std::get<StmtPtr>(m_value); 
+	assert(ret);
+	return *ret;
 }
 
 /// BlockItemList

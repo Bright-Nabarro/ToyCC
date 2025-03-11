@@ -44,8 +44,12 @@ private:
 	void handle(const Decl& node, LocalSymbolTable& table);
 	void handle(const ConstDecl& node, LocalSymbolTable& table);
 
+	void handle(const Stmt& node, LocalSymbolTable& table);
 	void handle(const SimpleStmt& node, LocalSymbolTable& table);
-	void handle(const SelectStmt& node, LocalSymbolTable& table);
+	template <typename OpenOrClosedStmt>
+	auto handle_branch_stmt(const BranchStmt<OpenOrClosedStmt>& node,
+							LocalSymbolTable& table) -> llvm::BasicBlock*;
+
 	auto handle(const Expr& expr, LocalSymbolTable& table) -> llvm::Value*;
 	auto handle(const PrimaryExpr& node, LocalSymbolTable& table)
 		-> llvm::Value*;
