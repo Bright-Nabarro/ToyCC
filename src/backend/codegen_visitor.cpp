@@ -356,9 +356,6 @@ auto CodeGenVisitor::handle_branch_stmt(
 				auto* open_stmt = llvm::cast<OpenStmt>(&node);
 			static_assert(std::is_same_v<decltype(open_stmt), const OpenStmt*>);
 			handle(open_stmt->get_stmt(), table);
-
-			if (!get_builder().GetInsertBlock()->getTerminator())
-				get_builder().CreateBr(if_end);
 		}
 		else
 		{
@@ -372,11 +369,10 @@ auto CodeGenVisitor::handle_branch_stmt(
 			get_builder().SetInsertPoint(if_else);
 			handle_branch_stmt(node.get_last_stmt(), table);
 
-			if (!get_builder().GetInsertBlock()->getTerminator())
-				get_builder().CreateBr(if_end);
 		}
-			get_builder().SetInsertPoint(if_end);
-			return if_end;
+		create_br_to_next(if_end);
+		get_builder().SetInsertPoint(if_end);
+		return if_end;
 									}
 	case BranchType::while_stmt:
 									{
